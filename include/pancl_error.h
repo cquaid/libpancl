@@ -80,6 +80,17 @@
 #define PANCL_ERROR_ARRAY_MEMBER_TYPE        300
 
 /**
+ * Long-form of the inline-table (::Table(...)) has invalid argument count
+ * (not a multiple of 2).
+ */
+#define PANCL_ERROR_INLINE_TABLE_COUNT           400
+/**
+ * Long-form of the inline-table (::Table(...)) was given a non-string type
+ * for a key.
+ */
+#define PANCL_ERROR_INLINE_TABLE_KEY_NOT_STRING  401
+
+/**
  * \x followed by 0 hexadecimal digits.
  */
 #define PANCL_ERROR_STR_ESC_X          7000

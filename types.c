@@ -104,7 +104,6 @@ pancl_tuple_append(struct pancl_tuple *tuple, struct pancl_value *item)
 	return PANCL_SUCCESS;
 }
 
-
 void
 pancl_custom_init(struct pancl_custom *custom)
 {
@@ -250,6 +249,21 @@ pancl_value_init(struct pancl_value *value, enum pancl_type type)
 	}
 }
 
+int
+pancl_value_new(struct pancl_value **value, enum pancl_type type)
+{
+	if (value == NULL)
+		return PANCL_ERROR_ARG_INVALID;
+
+	*value = malloc(sizeof(**value));
+
+	if (*value == NULL)
+		return PANCL_ERROR_ALLOC;
+
+	pancl_value_init(*value, type);
+	return PANCL_SUCCESS;
+}
+
 void
 pancl_value_fini(struct pancl_value *value)
 {
@@ -294,6 +308,16 @@ pancl_value_fini(struct pancl_value *value)
 	pancl_value_init(value, value->type);
 }
 
+void
+pancl_value_destroy(struct pancl_value **value)
+{
+	if (value == NULL || *value == NULL)
+		return;
+
+	pancl_value_fini(*value);
+	free(*value);
+	*value = NULL;
+}
 
 void
 pancl_entry_init(struct pancl_entry *entry)
@@ -303,6 +327,21 @@ pancl_entry_init(struct pancl_entry *entry)
 
 	memset(entry, 0, sizeof(*entry));
 	pancl_value_init(&(entry->data), PANCL_TYPE_INTEGER);
+}
+
+int
+pancl_entry_new(struct pancl_entry **entry)
+{
+	if (entry == NULL)
+		return PANCL_ERROR_ARG_INVALID;
+
+	*entry = malloc(sizeof(**entry));
+
+	if (*entry == NULL)
+		return PANCL_ERROR_ALLOC;
+
+	pancl_entry_init(*entry);
+	return PANCL_SUCCESS;
 }
 
 void
@@ -317,6 +356,16 @@ pancl_entry_fini(struct pancl_entry *entry)
 	pancl_entry_init(entry);
 }
 
+void
+pancl_entry_destroy(struct pancl_entry **entry)
+{
+	if (entry == NULL || *entry == NULL)
+		return;
+
+	pancl_entry_fini(*entry);
+	free(*entry);
+	*entry = NULL;
+}
 
 void
 pancl_table_init(struct pancl_table *table)

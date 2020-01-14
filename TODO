@@ -1,0 +1,39 @@
+
+1. Should the built-in "integer" type be implementation-specific instead of
+   forced to be a 32-bit value?  It's a bit annoying using int_least32_t for
+   this as the common use-case would be "int".
+
+2. Should all newline types be accepted but a function exposed so that when
+   a newline appears within a string it is converted to a new value?
+
+     pancl_context_set_newline(&ctx, "\r\n") -> int
+        PANCL_SUCCESS
+        PANCL_ERROR_ARG_INVALID
+
+3. Should a date/timestamp type be added as a first-class type or as an
+   optional ::Date("...")?
+
+4. Implement ::Float("...").
+
+5. Add an error string function:
+
+    pancl_strerror(code) -> const char *
+
+6. Rename struct members to reflect their types? (custom.args -> custom.tuple)
+
+7. Change non-pointer struct members to pointers and just increase the number
+   of allocations made?
+
+    Original:
+      struct pancl_custom {
+          const char *name;
+          struct pancl_tuple args;
+      };
+
+    Becomes:
+      struct pancl_custom {
+          const char *name;
+          struct pancl_tuple *args;
+      };
+
+8. Write a parser for floating point numbers

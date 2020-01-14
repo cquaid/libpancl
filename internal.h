@@ -58,7 +58,12 @@ int pancl_table_data_append(struct pancl_table_data *td,
 		struct pancl_entry *entry);
 
 void pancl_value_init(struct pancl_value *value, enum pancl_type type);
+int pancl_value_new(struct pancl_value **value, enum pancl_type type);
+void pancl_value_destroy(struct pancl_value **value);
+
 void pancl_entry_init(struct pancl_entry *entry);
+int pancl_entry_new(struct pancl_entry **entry);
+void pancl_entry_destroy(struct pancl_entry **entry);
 
 #endif /* H_PANCL_INTERNAL */
 // vim:ts=4:sw=4:autoindent

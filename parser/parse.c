@@ -12,6 +12,7 @@
 
 #include "internal.h"
 #include "lexer/token.h"
+#include "parser/custom_types.h"
 #include "parser/str_to_int.h"
 
 /**
@@ -632,119 +633,6 @@ cleanup:
 	return err;
 }
 
-static int
-handle_internal_int_type(struct pancl_value *value, enum pancl_type type)
-{
-	int err = PANCL_ERROR_ARG_INVALID;
-	union pancl_type_union new_value;
-	const char *str = NULL;
-	int base = 0;
-
-	/* Validate the tuple. */
-	if (value->data.custom.args.count < 1 || value->data.custom.args.count > 2)
-		return PANCL_ERROR_OPT_INT_ARG_COUNT;
-
-	/* [Arg 0] Validate and grab the string portion */
-	{
-		struct pancl_value *str_value = value->data.custom.args.items[0];
-
-		if (str_value->type != PANCL_TYPE_STRING)
-			return PANCL_ERROR_OPT_INT_ARG_0_NOT_STRING;
-
-		str = str_value->data.string;
-	}
-
-	/* [Arg 1] Validate and grab the optional base portion */
-	if (value->data.custom.args.count == 2) {
-		struct pancl_value *base_value = value->data.custom.args.items[1];
-
-		if (base_value->type != PANCL_TYPE_INTEGER)
-			return PANCL_ERROR_OPT_INT_ARG_1_NOT_INT;
-
-		base = (int)base_value->data.integer;
-	}
-
-	switch (type) {
-	case PANCL_TYPE_OPT_INT8:
-		err = str_to_int8(&(new_value.opt.int8), str, base);
-		break;
-
-	case PANCL_TYPE_OPT_UINT8:
-		err = str_to_uint8(&(new_value.opt.uint8), str, base);
-		break;
-
-	case PANCL_TYPE_OPT_INT16:
-		err = str_to_int16(&(new_value.opt.int16), str, base);
-		break;
-
-	case PANCL_TYPE_OPT_UINT16:
-		err = str_to_uint16(&(new_value.opt.uint16), str, base);
-		break;
-
-	case PANCL_TYPE_OPT_INT32:
-		err = str_to_int32(&(new_value.opt.int32), str, base);
-		break;
-
-	case PANCL_TYPE_OPT_UINT32:
-		err = str_to_uint32(&(new_value.opt.uint32), str, base);
-		break;
-
-	case PANCL_TYPE_OPT_INT64:
-		err = str_to_int64(&(new_value.opt.int64), str, base);
-		break;
-
-	case PANCL_TYPE_OPT_UINT64:
-		err = str_to_uint64(&(new_value.opt.uint64), str, base);
-		break;
-
-	default:
-		break;
-	}
-
-	if (err == PANCL_SUCCESS) {
-		/* Clean up the old value */
-		pancl_value_fini(value);
-
-		/* Set the new value. */
-		pancl_value_init(value, type);
-		memcpy(&(value->data), &new_value, sizeof(value->data));
-	}
-
-	return err;
-}
-
-static int
-handle_internal_custom_type(struct pancl_value *value)
-{
-	const char *name = value->data.custom.name;
-
-	if (strcmp(name, "::Int8") == 0)
-		return handle_internal_int_type(value, PANCL_TYPE_OPT_INT8);
-
-	if (strcmp(name, "::Uint8") == 0)
-		return handle_internal_int_type(value, PANCL_TYPE_OPT_UINT8);
-
-	if (strcmp(name, "::Int16") == 0)
-		return handle_internal_int_type(value, PANCL_TYPE_OPT_INT16);
-
-	if (strcmp(name, "::Uint16") == 0)
-		return handle_internal_int_type(value, PANCL_TYPE_OPT_UINT16);
-
-	if (strcmp(name, "::Int32") == 0)
-		return handle_internal_int_type(value, PANCL_TYPE_OPT_INT32);
-
-	if (strcmp(name, "::Uint32") == 0)
-		return handle_internal_int_type(value, PANCL_TYPE_OPT_UINT32);
-
-	if (strcmp(name, "::Int64") == 0)
-		return handle_internal_int_type(value, PANCL_TYPE_OPT_INT64);
-
-	if (strcmp(name, "::Uint64") == 0)
-		return handle_internal_int_type(value, PANCL_TYPE_OPT_UINT64);
-
-	return PANCL_SUCCESS;
-}
-
 /**
  * Parse an RVALUE.
  *
@@ -831,7 +719,7 @@ parse_rvalue(struct pancl_context *ctx, struct token_buffer *tb,
 					is_terminator);
 
 			if (err == PANCL_SUCCESS)
-				err = handle_internal_custom_type(value);
+				err = handle_known_custom_types(value);
 
 			return err;
 		}
