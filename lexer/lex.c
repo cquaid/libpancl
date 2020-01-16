@@ -898,7 +898,7 @@ int
 lexer_rewind_token(struct pancl_context *ctx, struct token *t)
 {
 	if (ctx->token1 == NULL) {
-		ctx->token1 = malloc(sizeof(*t));
+		ctx->token1 = pancl_alloc(sizeof(*t));
 
 		if (ctx->token1 == NULL)
 			return PANCL_ERROR_ALLOC;

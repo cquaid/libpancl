@@ -150,7 +150,7 @@ pancl_context_setup(struct pancl_context *ctx,
 	ctx->ops_data = ops_data;
 
 	if (alloc_buffer) {
-		ctx->allocated_buffer = malloc(DEFAULT_BUFFER_SIZE);
+		ctx->allocated_buffer = pancl_alloc(DEFAULT_BUFFER_SIZE);
 
 		if (ctx->allocated_buffer == NULL)
 			return PANCL_ERROR_ALLOC;
@@ -164,7 +164,7 @@ pancl_context_setup(struct pancl_context *ctx,
 		err = 0;
 
 	if (err != 0) {
-		free(ctx->allocated_buffer);
+		pancl_free(ctx->allocated_buffer);
 		ctx->allocated_buffer = NULL;
 		return PANCL_ERROR_CTX_INIT;
 	}
@@ -275,11 +275,11 @@ pancl_context_fini(struct pancl_context *ctx)
 	if (ctx->ops != NULL && ctx->ops->fini != NULL)
 		ctx->ops->fini(ctx->ops_data);
 
-	free(ctx->allocated_buffer);
+	pancl_free(ctx->allocated_buffer);
 
 	if (ctx->token1 != NULL) {
 		token_fini(ctx->token1);
-		free(ctx->token1);
+		pancl_free(ctx->token1);
 	}
 
 	/* Reset all the fields. */

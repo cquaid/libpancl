@@ -47,19 +47,19 @@ struct pancl_entry;
  */
 struct pancl_array {
 	/**
-	 * Number of entries in the items array.
+	 * Number of entries in the values array.
 	 */
 	size_t count;
 	/**
 	 * Entries in the array.  Each entry is guaranteed by the parser to be of
-	 * the same type.  Defreference items[0]->type for the array type.
+	 * the same type.  Defreference values[0]->type for the array type.
 	 *
 	 * If count != 0, then this is guaranteed to be non-NULL.
 	 *
 	 * If this is non-NULL then each pointer pointed to is guaranteed to also
 	 * be non-NULL.
 	 */
-	struct pancl_value **items;
+	struct pancl_value **values;
 };
 
 /**
@@ -67,7 +67,7 @@ struct pancl_array {
  */
 struct pancl_tuple {
 	/**
-	 * Number of entries in the items array.
+	 * Number of entries in the values array.
 	 */
 	size_t count;
 	/**
@@ -78,7 +78,7 @@ struct pancl_tuple {
 	 * If this is non-NULL then each pointer pointed to is guaranteed to also
 	 * be non-NULL.
 	 */
-	struct pancl_value **items;
+	struct pancl_value **values;
 };
 
 /**
@@ -93,8 +93,10 @@ struct pancl_custom {
 	char *name;
 	/**
 	 * Tuple containing the type parameters.  This tuple may be empty.
+	 *
+	 * This member is guaranteeed to be non-NULL.
 	 */
-	struct pancl_tuple args;
+	struct pancl_tuple tuple;
 };
 
 /**
@@ -211,10 +213,10 @@ enum pancl_type {
 union pancl_type_union {
 	struct pancl_array array;      /**< PANCL_TYPE_ARRAY */
 	struct pancl_custom custom;    /**< PANCL_TYPE_CUSTOM */
-	int boolean;                   /**< PANCL_TYPE_BOOLEAN */
-	double floating;               /**< PANCL_TYPE_FLOATING */
-	int_least32_t integer;         /**< PANCL_TYPE_INTEGER */
-	char *string;                  /**< PANCL_TYPE_STRING (non-NULL) */
+	int boolean;                    /**< PANCL_TYPE_BOOLEAN */
+	double floating;                /**< PANCL_TYPE_FLOATING */
+	int_least32_t integer;          /**< PANCL_TYPE_INTEGER */
+	char *string;                   /**< PANCL_TYPE_STRING (non-NULL) */
 	struct pancl_table_data table; /**< PANCL_TYPE_TABLE */
 	struct pancl_tuple tuple;      /**< PANCL_TYPE_TUPLE */
 	union {
@@ -242,7 +244,7 @@ struct pancl_value {
  */
 struct pancl_entry {
 	char *name; /**< Name (key) of the entry (non-NULL) */
-	struct pancl_value data; /**< Associated value */
+	struct pancl_value value; /**< Associated value (non-NULL) */
 };
 
 /**
@@ -260,6 +262,7 @@ struct pancl_table {
 	char *name;
 	/**
 	 * Data associated with the table.
+	 * May be NULL.
 	 */
 	struct pancl_table_data data;
 };
@@ -271,8 +274,8 @@ int pancl_get_table(struct pancl_context *ctx, struct pancl_table *table);
 void pancl_table_init(struct pancl_table *table);
 void pancl_table_fini(struct pancl_table *table);
 
-void pancl_value_fini(struct pancl_value *value);
-void pancl_entry_fini(struct pancl_entry *entry);
+void pancl_entry_destroy(struct pancl_entry **entry);
+void pancl_value_destroy(struct pancl_value **value);
 
 #endif /* H_PANCL */
 // vim:ts=4:sw=4:autoindent

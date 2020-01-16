@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "pancl_error.h"
+#include "internal.h"
 #include "lexer/token.h"
 
 void
@@ -24,7 +25,7 @@ token_fini(struct token *t)
 	if (t == NULL)
 		return;
 
-	free(t->value);
+	pancl_free(t->value);
 	token_init(t);
 }
 
@@ -39,7 +40,7 @@ token_set(struct token *t, int type, int subtype, const char *value)
 		return PANCL_SUCCESS;
 	}
 
-	t->value = strdup(value);
+	t->value = pancl_strdup(value);
 
 	if (t->value == NULL)
 		return PANCL_ERROR_ALLOC;
@@ -65,7 +66,7 @@ token_append(struct token *t, const char *value)
 	add = strlen(value);
 
 	/* XXX: overflow check. */
-	tmp = realloc(t->value, len + add + 1);
+	tmp = pancl_realloc(t->value, len + add + 1);
 
 	if (tmp == NULL)
 		return PANCL_ERROR_ALLOC;
@@ -92,7 +93,7 @@ token_buffer_append_c(struct token_buffer *tb, char c)
 		goto append;
 
 	/* Realloc. XXX overflow check. XXX define for step */
-	d = realloc(tb->buffer, tb->size + TOKEN_BUFFER_STEP);
+	d = pancl_realloc(tb->buffer, tb->size + TOKEN_BUFFER_STEP);
 
 	if (d == NULL)
 		return PANCL_ERROR_ALLOC;
@@ -125,7 +126,7 @@ token_buffer_fini(struct token_buffer *tb)
 	if (tb == NULL)
 		return;
 
-	free(tb->buffer);
+	pancl_free(tb->buffer);
 	tb->buffer = NULL;
 }
 

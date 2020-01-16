@@ -135,12 +135,13 @@ parse_array(struct pancl_context *ctx, struct token_buffer *tb,
 
 			/* Try to find an RVALUE. */
 			{
-				struct pancl_value *v = malloc(sizeof(*v));
+				struct pancl_value *v;
 
-				if (v == NULL) {
-					err = PANCL_ERROR_ALLOC;
+				/* Set a fake type for simplicity here. */
+				err = pancl_value_new(&v, PANCL_TYPE_INTEGER);
+
+				if (err != PANCL_SUCCESS)
 					goto cleanup;
-				}
 
 				err = parse_rvalue(ctx, tb, &t, v, array_member_terminator);
 
@@ -148,8 +149,7 @@ parse_array(struct pancl_context *ctx, struct token_buffer *tb,
 					err = pancl_array_append(array, v);
 
 				if (err != PANCL_SUCCESS) {
-					pancl_value_fini(v);
-					free(v);
+					pancl_value_destroy(&v);
 					goto cleanup;
 				}
 			}
@@ -304,12 +304,13 @@ parse_tuple(struct pancl_context *ctx, struct token_buffer *tb,
 
 			/* Try to find an RVALUE. */
 			{
-				struct pancl_value *v = malloc(sizeof(*v));
+				struct pancl_value *v;
 
-				if (v == NULL) {
-					err = PANCL_ERROR_ALLOC;
+				/* Set a fake type for simplicity here. */
+				err = pancl_value_new(&v, PANCL_TYPE_INTEGER);
+
+				if (err != PANCL_SUCCESS)
 					goto cleanup;
-				}
 
 				err = parse_rvalue(ctx, tb, &t, v, tuple_member_terminator);
 
@@ -317,8 +318,7 @@ parse_tuple(struct pancl_context *ctx, struct token_buffer *tb,
 					err = pancl_tuple_append(tuple, v);
 
 				if (err != PANCL_SUCCESS) {
-					pancl_value_fini(v);
-					free(v);
+					pancl_value_destroy(&v);
 					goto cleanup;
 				}
 			}
@@ -483,8 +483,7 @@ parse_table_data(struct pancl_context *ctx, struct token_buffer *tb,
 				}
 
 				if (err != PANCL_SUCCESS) {
-					pancl_entry_fini(entry);
-					free(entry);
+					pancl_entry_destroy(&entry);
 					goto cleanup;
 				}
 
@@ -590,7 +589,7 @@ parse_custom_type(struct pancl_context *ctx, struct token_buffer *tb,
 		}
 
 		if (t.type == TT_L_PAREN) {
-			err = parse_tuple(ctx, tb, &(custom->args), is_terminator);
+			err = parse_tuple(ctx, tb, &(custom->tuple), is_terminator);
 			goto cleanup;
 		}
 
@@ -733,12 +732,10 @@ parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
 
 	state = FIND_EQ;
 
-	*entry_storage = malloc(sizeof(**entry_storage));
+	err = pancl_entry_new(entry_storage);
 
-	if (*entry_storage == NULL)
-		return PANCL_ERROR_ALLOC;
-
-	pancl_entry_init(*entry_storage);
+	if (err != PANCL_SUCCESS)
+		return err;
 
 	for (;;) {
 		err = next_token(ctx, tb, &t);
@@ -763,7 +760,7 @@ parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
 
 		case FIND_RVALUE:
 			/* Propogate the termiantor check. */
-			err = parse_rvalue(ctx, tb, &t, &(entry_storage[0]->data),
+			err = parse_rvalue(ctx, tb, &t, &(entry_storage[0]->value),
 					is_terminator);
 
 			if (err == PANCL_SUCCESS) {
@@ -808,6 +805,9 @@ parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
 	err = PANCL_ERROR_INTERNAL;
 
 cleanup:
+	if (err != PANCL_SUCCESS)
+		pancl_entry_destroy(entry_storage);
+
 	token_fini(&t);
 	return err;
 }
@@ -976,8 +976,7 @@ pancl_get_table(struct pancl_context *ctx, struct pancl_table *table)
 			}
 
 			if (err != PANCL_SUCCESS) {
-				pancl_entry_fini(entry);
-				free(entry);
+				pancl_entry_destroy(&entry);
 				goto cleanup;
 			}
 

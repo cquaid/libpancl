@@ -15,10 +15,10 @@ print_array(struct pancl_array *array, int level)
 {
 	size_t i;
 
-	printf("%*.sItems: %zu\n", level, "", array->count);
+	printf("%*.sValues: %zu\n", level, "", array->count);
 
 	for (i = 0; i < array->count; ++i)
-		print_value(array->items[i], level + 2);
+		print_value(array->values[i], level + 2);
 }
 
 static void
@@ -26,10 +26,10 @@ print_tuple(struct pancl_tuple *tuple, int level)
 {
 	size_t i;
 
-	printf("%*.sItems: %zu\n", level, "", tuple->count);
+	printf("%*.sValues: %zu\n", level, "", tuple->count);
 
 	for (i = 0; i < tuple->count; ++i)
-		print_value(tuple->items[i], level + 2);
+		print_value(tuple->values[i], level + 2);
 }
 
 static void
@@ -65,7 +65,7 @@ print_value(struct pancl_value *value, int level)
 
 	case PANCL_TYPE_CUSTOM:
 		printf("%*.sCUSTOM (%s)\n", level, "", value->data.custom.name);
-		print_tuple(&(value->data.custom.args), level + 2);
+		print_tuple(&(value->data.custom.tuple), level + 2);
 		break;
 
 	case PANCL_TYPE_ARRAY:
@@ -129,7 +129,7 @@ static void
 print_entry(struct pancl_entry *entry, int level)
 {
 	printf("%*.sEntry: \"%s\"\n", level, "", entry->name);
-	print_value(&(entry->data), level + 2);
+	print_value(&(entry->value), level + 2);
 }
 
 static void
