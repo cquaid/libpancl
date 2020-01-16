@@ -554,55 +554,6 @@ cleanup:
 	return err;
 }
 
-#if 0
-static int
-collate_strings(struct pancl_context *ctx, struct token_buffer *tb,
-	struct token *string)
-{
-	int err;
-	struct token next = TOKEN_INIT;
-
-	for (;;) {
-		err = next_token(ctx, tb, &next);
-
-		if (err != PANCL_SUCCESS)
-			goto cleanup;
-
-		if (next.type == TT_EOF) {
-			err = PANCL_ERROR_PARSER_EOF;
-			goto cleanup;
-		}
-
-		if (next.type == TT_ERROR) {
-			ctx->error_pos = next.pos;
-			err = PANCL_ERROR_PARSER_TOKEN;
-			goto cleanup;
-		}
-
-		/* Got a string! Append it! */
-		if (next.type == TT_STRING) {
-			token_fini(&stored_ws);
-			err = token_append(string, next.value);
-
-			if (err != PANCL_SUCCESS)
-				goto cleanup;
-
-			continue;
-		}
-
-		/* Any other token means we need to put back the current token to be
-		 * picked up by another context.
-		 */
-		err = lexer_rewind_token(ctx, &next);
-		break;
-	}
-
-cleanup:
-	token_fini(&next);
-	return err;
-}
-#endif
-
 /**
  * Parse a "custom" RVALUE.
  *

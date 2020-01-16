@@ -105,6 +105,20 @@ append:
 	return PANCL_SUCCESS;
 }
 
+int
+token_buffer_end(struct token_buffer *tb)
+{
+	int err = token_buffer_append(tb, '\0');
+
+	/* Decrement the position when we add the '\0' in case someone attempts to
+	 * append later (legal).
+	 */
+	if (err == PANCL_SUCCESS)
+		tb->pos -= 1;
+
+	return err;
+}
+
 void
 token_buffer_fini(struct token_buffer *tb)
 {

@@ -188,6 +188,12 @@ get_next(struct pancl_context *ctx, uint_fast32_t *c)
 	return err;
 }
 
+static bool
+is_newline_start(struct pancl_context *ctx, uint_fast32_t c)
+{
+	return (c == '\n' || c == '\r');
+}
+
 /**
  * Newlines are as follows:
  *  CR LF
@@ -248,38 +254,8 @@ consume_comment(struct pancl_context *ctx)
 static bool
 is_whitespace(uint_fast32_t c)
 {
-	switch (c) {
-	case ' ':
-	case '\t':
-		/* Note that '\f', '\v', '\r', and '\n' are not present here. */
-		return true;
-	default:
-		return false;
-	}
+	return (c == ' ' || c == '\t');
 }
-
-static int
-consume_whitespace(struct pancl_context *ctx)
-{
-	uint_fast32_t p;
-	int err;
-
-	while ((err = peek_next(ctx, &p)) == PANCL_SUCCESS) {
-		if (!is_whitespace(p)) {
-			/* Finished parsing whitespace; do not advance. */
-			return PANCL_SUCCESS;
-		}
-
-		/* Consume the whitespace character */
-		err = advance(ctx);
-
-		if (err != PANCL_SUCCESS)
-			break;
-	}
-
-	return err;
-}
-
 
 static bool
 is_raw_ident(uint_fast32_t c)
@@ -613,7 +589,7 @@ handle_escape(struct pancl_context *ctx, struct token_buffer *tb,
  * Expects to start just past the delimiter.
  */
 static int
-get_string(struct pancl_context *ctx, struct token_buffer *tb,
+get_single_string(struct pancl_context *ctx, struct token_buffer *tb,
 	uint_fast32_t delim)
 {
 	int err;
@@ -621,8 +597,6 @@ get_string(struct pancl_context *ctx, struct token_buffer *tb,
 
 	bool raw = (delim == '\''); /* single-quotes = raw string */
 	bool do_escape = false;
-
-	token_buffer_reset(tb);
 
 	/* Starts past the delimiter so we just append to the buffer, handling
 	 * any escape sequences (non-raw) we encounter.
@@ -678,6 +652,102 @@ get_string(struct pancl_context *ctx, struct token_buffer *tb,
 
 	if (err == PANCL_END_OF_INPUT)
 		return PANCL_ERROR_STR_SHORT;
+
+	return err;
+}
+
+/**
+ * Expects to start just past the delimiter.
+ */
+static int
+get_string(struct pancl_context *ctx, struct token_buffer *tb,
+	uint_fast32_t delim)
+{
+	int err;
+	uint_fast32_t c;
+
+	token_buffer_reset(tb);
+	err = get_single_string(ctx, tb, delim);
+
+	if (err != PANCL_SUCCESS)
+		return err;
+
+	/* Okay, we've gotten one string, BUT! strings can be adjacent to one
+	 * another meaning we have to handle the following:
+	 *
+	 * Comment - not allowed as comments end lines.
+	 * Whitespace - allowed, just ignore it!
+	 * Escaped newline - allowed, also ignore!
+	 */
+	for (;;) {
+		err = peek_next(ctx, &c);
+
+		if (err != PANCL_SUCCESS)
+			break;
+
+		/* Ignore all whitespace characters. */
+		if (is_whitespace(c)) {
+			err = advance(ctx);
+
+			if (err != PANCL_SUCCESS)
+				break;
+
+			continue;
+		}
+
+		/* If we got a quote then we can append to our string! */
+		if (is_quote(c)) {
+			err = advance(ctx);
+
+			if (err == PANCL_SUCCESS)
+				err = get_single_string(ctx, tb, c);
+
+			if (err != PANCL_SUCCESS)
+				break;
+
+			continue;
+		}
+
+		if (c == '\\') {
+			/* Got a possible escaped newline.
+			 *
+			 * We have to be careful here!  is_newline() will peek and modify
+			 * the input cursor.
+			 *
+			 * To get around this we check if the next character is a possible
+			 * start to a newline sequence.
+			 *
+			 * If so, we'll advance the cursor and then use is_newline() to
+			 * consume it.
+			 */
+			err = advance(ctx);
+
+			if (err == PANCL_SUCCESS)
+				err = peek_next(ctx, &c);
+
+			if (err != PANCL_SUCCESS)
+				break;
+
+			if (is_newline_start(ctx, c)) {
+				err = advance(ctx);
+
+				if (err != PANCL_SUCCESS)
+					break;
+
+				(void)is_newline(ctx, c);
+				continue;
+			}
+		}
+
+		/* Any other character? We're done here. */
+		break;
+	}
+
+	/* Getting EOF means we at least got one string, so this is actually a
+	 * success case.
+	 */
+	if (err == PANCL_END_OF_INPUT)
+		return PANCL_SUCCESS;
 
 	return err;
 }
@@ -748,16 +818,10 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 		}
 
 		/* Whitespace is irrelevant. If found, consume it and start parsing the
-		 * next token.
+		 * next character.
 		 */
-		if (is_whitespace(c)) {
-			err = consume_whitespace(ctx);
-
-			if (err != PANCL_SUCCESS)
-				return err;
-
+		if (is_whitespace(c))
 			continue;
-		}
 
 		/* Comment! (They count as newlines for simplicity) */
 		if (c == '#') {

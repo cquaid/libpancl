@@ -137,12 +137,7 @@ token_buffer_append(struct token_buffer *tb, uint_fast32_t val)
 	return encode_utf8(tb, val);
 }
 
-static inline int
-token_buffer_end(struct token_buffer *tb)
-{
-	return token_buffer_append(tb, '\0');
-}
-
+int token_buffer_end(struct token_buffer *tb);
 void token_buffer_fini(struct token_buffer *tb);
 
 
