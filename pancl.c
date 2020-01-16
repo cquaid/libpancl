@@ -252,11 +252,8 @@ pancl_parse_string(struct pancl_context *ctx, const char *string)
 void
 pancl_context_init(struct pancl_context *ctx)
 {
-	if (ctx == NULL)
-		return;
-
-	memset(ctx, 0, sizeof(*ctx));
-	ctx->nl_type = PANCL_NL_UNIX;
+	if (ctx != NULL)
+		memset(ctx, 0, sizeof(*ctx));
 }
 
 /**
@@ -280,9 +277,14 @@ pancl_context_fini(struct pancl_context *ctx)
 
 	free(ctx->allocated_buffer);
 
-	if (ctx->first_token != NULL) {
-		token_fini(ctx->first_token);
-		free(ctx->first_token);
+	if (ctx->token1 != NULL) {
+		token_fini(ctx->token1);
+		free(ctx->token1);
+	}
+
+	if (ctx->token2 != NULL) {
+		token_fini(ctx->token2);
+		free(ctx->token2);
 	}
 
 	/* Reset all the fields. */

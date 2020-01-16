@@ -198,7 +198,7 @@ parse_array(struct pancl_context *ctx, struct token_buffer *tb,
 				}
 
 				if (term == TERM_STATUS_VALID) {
-					err = set_first_token(ctx, &t);
+					err = lexer_rewind_token(ctx, &t);
 					goto cleanup;
 				}
 			}
@@ -373,7 +373,7 @@ parse_tuple(struct pancl_context *ctx, struct token_buffer *tb,
 				}
 
 				if (term == TERM_STATUS_VALID) {
-					err = set_first_token(ctx, &t);
+					err = lexer_rewind_token(ctx, &t);
 					goto cleanup;
 				}
 			}
@@ -546,7 +546,7 @@ parse_table_data(struct pancl_context *ctx, struct token_buffer *tb,
 				}
 
 				if (term == TERM_STATUS_VALID) {
-					err = set_first_token(ctx, &t);
+					err = lexer_rewind_token(ctx, &t);
 					goto cleanup;
 				}
 			}
@@ -571,6 +571,75 @@ cleanup:
 	token_fini(&t);
 	return err;
 }
+
+#if 0
+static int
+collate_strings(struct pancl_context *ctx, struct token_buffer *tb,
+	struct token *string)
+{
+	int err;
+	struct token next = TOKEN_INIT;
+	struct token stored_ws = TOKEN_INIT;
+
+	for (;;) {
+		err = next_token(ctx, tb, &next);
+
+		if (err != PANCL_SUCCESS)
+			goto cleanup;
+
+		if (next.type == TT_EOF) {
+			err = PANCL_ERROR_PARSER_EOF;
+			goto cleanup;
+		}
+
+		if (next.type == TT_ERROR) {
+			ctx->error_pos = next.pos;
+			err = PANCL_ERROR_PARSER_TOKEN;
+			goto cleanup;
+		}
+
+		/* Whitespace is allowed between strings. We only check for an exact
+		 * run of whitespace characters here instead of a whitespace subtype
+		 * since that could be other things.
+		 *
+		 * We know that whitespace tokens (because the lexer consumes all
+		 * whitespace sequences as one token) cannot follow one another
+		 * so it's safe to just store the value and keep going.
+		 */
+		if (next.type == TT_WS) {
+			token_move(&stored_ws, &next);
+			continue;
+		}
+
+		/* Got a string! Append it! */
+		if (next.type == TT_STRING) {
+			token_fini(&stored_ws);
+			err = token_append(string, next.value);
+
+			if (err != PANCL_SUCCESS)
+				goto cleanup;
+
+			continue;
+		}
+
+		/* Any other token means we need to:
+		 * 1. Put back the whitespace token we stored, if we did.
+		 * 2. Put back the current token
+		 */
+		if (stored_ws.type != TT_WS)
+			err = lexer_rewind_token(ctx, &next);
+		else
+			err = lexer_rewind_token2(ctx, &stored_ws, &next);
+
+		break;
+	}
+
+cleanup:
+	token_fini(&stored_ws);
+	token_fini(&next);
+	return err;
+}
+#endif
 
 /**
  * Parse a "custom" RVALUE.
@@ -816,7 +885,7 @@ parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
 					/* Always rewind the terminator token for the caller to
 					 * evaluate.
 					 */
-					err = set_first_token(ctx, &t);
+					err = lexer_rewind_token(ctx, &t);
 					goto cleanup;
 				}
 			}
@@ -1031,7 +1100,7 @@ pancl_get_table(struct pancl_context *ctx, struct pancl_table *table)
 			 * XXX: This is a bit of a hack...
 			 */
 			if (table->data.count != 0) {
-				err = set_first_token(ctx, &t);
+				err = lexer_rewind_token(ctx, &t);
 
 				if (err != PANCL_SUCCESS)
 					goto cleanup;

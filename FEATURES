@@ -1,0 +1,65 @@
+
+1. At the top level everything is a "table".  Tables are defined as follows:
+
+        [table_name]  or  ["table name"]
+
+   Before the first named table is given, entries go in what we call the
+   "global table" (which is really just an unnamed table).
+
+2. The only other construct available at the top level is an "entry".  Entries
+   take the form of assignment expressions.
+
+        entry_name = RVALUE
+        "entry name" = RVALUE
+
+   Entry names do not need to be unique, thus a given table may have more than
+   one entry with the same name.
+
+3. Comments begin with '#' and continue to the end of a line.  A comment may
+   NOT end with the line continuation character '\'.
+
+4. An RVALUE is anything that sits right of the equal sign in an entry.
+   Available RVALUE types:
+
+        a. Integers - int32
+            Decimal, Octal, Hexadecimal, Binary
+        b. Float - double
+        c. String
+            "..." - escape sequences
+            '...' - raw string, no escapes
+        d. Array
+            [ ... ]
+        e. Tuple
+            ( ... )
+        f. Table
+            { ... }, May contain entries:  { foo = "bar" }
+        g. Custom Type
+            type_name( ... )
+
+5. Double-quote strings may have the following escape sequences:
+        \a \b \f \n \r \t \v \\ \' \"
+        \ooo (1-3 octal digits)
+        \xhh (exactly 2 hex digits)
+        \uhhhh (exactly 4 hex digits, unicode character)
+        \Uhhhhhhhh (exactly 8 hex digits, unicode character)
+
+   A newline may also be escaped in which case it is ignore and not included in
+   the final string.
+
+6. String concatenation:  Adjacent STRING tokens are concatenated together
+   into a single String.  They may be a mix of single and double-quoted
+   strings.
+
+    "foo" "bar"      -> "foobar"
+    'f' "oo"'ba'"r"  -> "foobar"
+
+7. Literal newlines in Strings are canonicalized into the result of \n.
+
+8. Newline tokens may be any of the following:
+        \r\n  (CR LF)
+        \r    (CR)
+        \n    (LF)
+
+9. If a newline is escaped outside of a String, the newline is ignored.  This
+   allows for statements to be specified across multiple lines, if necessary.
+

@@ -34,7 +34,11 @@
 /**
  * Failure occured refilling the lexer buffer.
  */
-#define PANCL_ERROR_LEXER_REFILL  100
+#define PANCL_ERROR_LEXER_REFILL               100
+/**
+ * A newline escape was found at the end of a comment.
+ */
+#define PANCL_ERROR_LEXER_COMMENT_ESC_NEWLINE  101
 
 /**
  * Parser encountered an unexpected end of file/input.
@@ -91,26 +95,29 @@
 #define PANCL_ERROR_INLINE_TABLE_KEY_NOT_STRING  401
 
 /**
+ * End of Input reached before finding closing quote
+ */
+#define PANCL_ERROR_STR_SHORT          7000
+/**
  * \x followed by 0 hexadecimal digits.
  */
-#define PANCL_ERROR_STR_ESC_X          7000
+#define PANCL_ERROR_STR_ESC_X          7001
 /**
  * \u received less than 4 hexadecimal digits.
  */
-#define PANCL_ERROR_STR_ESC_LU         7001
+#define PANCL_ERROR_STR_ESC_LU         7002
 /**
  * \U received less than 8 hexadecimal digits.
  */
-#define PANCL_ERROR_STR_ESC_UU         7002
+#define PANCL_ERROR_STR_ESC_UU         7003
 /**
  * Octal escape too big to fit in a character (> 0377)
  */
-#define PANCL_ERROR_STR_ESC_OCTAL_DOM  7003
+#define PANCL_ERROR_STR_ESC_OCTAL_DOM  7004
 /**
- * End of Input reached before finding closing quote
+ * Unknown escape sequence
  */
-#define PANCL_ERROR_STR_SHORT          7004
-
+#define PANCL_ERROR_STR_ESC_UNKNOWN    7005
 
 /**
  * Invalid UTF-8 value in range 0xd800 - 0xdfff.

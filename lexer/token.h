@@ -32,9 +32,13 @@
 
 
 /**
- * Invalid character (or unset token)
+ * Invalid character
  */
-#define TT_ERROR      0
+#define TT_ERROR      -1
+/**
+ * Unset token (internal use)
+ */
+#define TT_UNSET      0
 /**
  * End of file
  */
@@ -47,18 +51,16 @@
 #define TT_R_PAREN    ')'
 #define TT_EQ         '='
 #define TT_COMMA      ','
-#define TT_LF         '\n'
-#define TT_CR         '\r'
 /**
- * Whitespace: [ \t\v\f]+
+ * Whitespace: [ \t]+
  */
 #define TT_WS  300
 /**
- * Newline: '\n' or '\r\n' depending on newline flags.
+ * Newline: '\r\n', '\r', or '\n'
  */
 #define TT_NEWLINE  301
 /**
- * Comment: #.*\n
+ * Comment: #.*<newline>
  */
 #define TT_COMMENT  302
 /**
@@ -100,23 +102,23 @@ struct token {
 	int type : 10; /**< What it be */
 	int subtype : 4; /**< What it also be */
 	char *value; /**< String value */
-	size_t length; /**< Value length */
 	struct pancl_pos pos; /**< Line / Column for token start */
 };
 
 #define TOKEN_INIT \
 	{ \
-		.type = TT_ERROR, \
+		.type = TT_UNSET, \
 		.subtype = TST_NONE, \
 		.value = NULL, \
-		.length = 0, \
 		.pos.line = 0, \
 		.pos.column = 0 \
 	}
 
 int token_set(struct token *t, int type, int subtype, const char *value);
+void token_init(struct token *t);
 void token_fini(struct token *t);
-
+int token_append(struct token *t, const char *value);
+void token_move(struct token *dest, struct token *src);
 
 struct token_buffer {
 	char *buffer;
@@ -155,7 +157,9 @@ void token_buffer_fini(struct token_buffer *tb);
 int next_token(struct pancl_context *ctx, struct token_buffer *tb,
 		struct token *t);
 
-int set_first_token(struct pancl_context *ctx, struct token *t);
+int lexer_rewind_token(struct pancl_context *ctx, struct token *t);
+int lexer_rewind_token2(struct pancl_context *ctx, struct token *t1,
+		struct token *t2);
 
 #endif /* H_PANCL_LEXER_TOKEN */
 // vim:ts=4:sw=4:autoindent

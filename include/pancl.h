@@ -27,15 +27,9 @@ struct pancl_context {
 	struct pancl_pos error_pos; /**< Error column/line number */
 
 	int end_of_input; /**< No more input data available */
-	int nl_type; /**< PANCL_NL_{UNIX,WINDOWS,BOTH} */
-	int nl_is_windows; /**< Currently in a windows newline */
-
-	void *first_token; /**< Internal use */
+	void *token1; /**< Internal use */
+	void *token2; /**< Internal use */
 };
-
-#define PANCL_NL_UNIX     1
-#define PANCL_NL_WINDOWS  2
-#define PANCL_NL_BOTH     (PANCL_NL_UNIX | PANCL_NL_WINDOWS)
 
 void pancl_context_init(struct pancl_context *ctx);
 void pancl_context_fini(struct pancl_context *ctx);

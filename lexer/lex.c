@@ -147,27 +147,25 @@ advance(struct pancl_context *ctx)
 
 	switch (c) {
 	case '\r':
-		if (ctx->nl_type & PANCL_NL_WINDOWS) {
-			uint_fast32_t p = '\0';
-			err = peek_next(ctx, &p);
+		err = peek_next(ctx, &c);
 
-			if (err != PANCL_SUCCESS && err != PANCL_END_OF_INPUT)
-				return err;
+		if (err != PANCL_SUCCESS && err != PANCL_END_OF_INPUT)
+			return err;
 
-			/* Don't need to check for PS_GOOD here since we initialized
-			 * the variable.
+		if (c != '\n') {
+			/* If just CR, go ahead and increment the line count.
+			 *
+			 * If we got CR LF, wait to increment the line count until we
+			 * consume the LF.
 			 */
-			ctx->nl_is_windows = (p == '\n');
+			ctx->pos.column = 0;
+			ctx->pos.line += 1;
 		}
 		break;
 
 	case '\n':
-		if (ctx->nl_is_windows || (ctx->nl_type & PANCL_NL_UNIX)) {
-			ctx->pos.column = 0;
-			ctx->pos.line += 1;
-			ctx->nl_is_windows = 0;
-		}
-
+		ctx->pos.column = 0;
+		ctx->pos.line += 1;
 		break;
 	}
 
@@ -190,35 +188,38 @@ get_next(struct pancl_context *ctx, uint_fast32_t *c)
 	return err;
 }
 
+/**
+ * Newlines are as follows:
+ *  CR LF
+ *  CF
+ *  LF
+ *
+ * The longest sequence must be taken, so CR LF is not two newlines, it's
+ * just one.
+ */
 static bool
 is_newline(struct pancl_context *ctx, uint_fast32_t c)
 {
 	int err;
 
-	switch (c) {
-	case '\r':
-		if (ctx->nl_type & PANCL_NL_WINDOWS) {
-			uint_fast32_t p = '\0';
-			err = peek_next(ctx, &p);
+	if (c == '\n')
+		return true;
 
-			if (err != PANCL_SUCCESS)
-				return false;
+	if (c != '\r')
+		return false;
 
-			if (p == '\n') {
-				/* Force the consumption */
-				(void)advance(ctx);
-				return true;
-			}
-		}
-		break;
+	/* Have CR, check for a following LF and consume it if found. */
+	err = peek_next(ctx, &c);
 
-	case '\n':
-		if (ctx->nl_type & PANCL_NL_UNIX)
-			return true;
-		break;
-	}
+	/* Peek errors don't matter, at this point we're always successful for the
+	 * newline check.
+	 *
+	 * BUT! We do need to force the consumption of the LF if we got one.
+	 */
+	if ((err == PANCL_SUCCESS) && (c == '\n'))
+		(void)advance(ctx);
 
-	return false;
+	return true;
 }
 
 
@@ -227,11 +228,18 @@ consume_comment(struct pancl_context *ctx)
 {
 	uint_fast32_t c;
 	int err;
+	bool escape = false;
 
 	/* Eat everything up-to and including the newline. */
 	while ((err = get_next(ctx, &c)) == PANCL_SUCCESS) {
-		if (is_newline(ctx, c))
+		if (is_newline(ctx, c)) {
+			/* Escaped newlines are not allowed in a comment. */
+			if (escape)
+				return PANCL_ERROR_LEXER_COMMENT_ESC_NEWLINE;
 			return PANCL_SUCCESS;
+		}
+
+		escape = (c == '\\');
 	}
 
 	return err;
@@ -243,9 +251,7 @@ is_whitespace(uint_fast32_t c)
 	switch (c) {
 	case ' ':
 	case '\t':
-	case '\f':
-	case '\v':
-		/* Note that '\r' and '\n' are not present here. */
+		/* Note that '\f', '\v', '\r', and '\n' are not present here. */
 		return true;
 	default:
 		return false;
@@ -549,8 +555,14 @@ handle_escape(struct pancl_context *ctx, struct token_buffer *tb,
 	ctx->error_pos = ctx->pos;
 
 	/* In raw mode, everything is unhandled. */
-	if (raw)
-		goto unhandled_escape;
+	if (raw) {
+		err = token_buffer_append(tb, '\\');
+
+		if (err == PANCL_SUCCESS)
+			err = token_buffer_append(tb, start);
+
+		return err;
+	}
 
 	/* Starts at the character just past the slash. */
 	switch (start) {
@@ -586,23 +598,15 @@ handle_escape(struct pancl_context *ctx, struct token_buffer *tb,
 		return handle_hex_escape(ctx, tb, start);
 
 	default:
-		if (is_newline(ctx, start)) {
-			/* Consume the EOL but don't append it. */
-			return PANCL_SUCCESS;
-		}
-
-		/* Unhandled escape. */
 		break;
 	}
 
-	/* XXX: Should unhandled escapes for non-raw be errors? (probably) */
-unhandled_escape:
-	err = token_buffer_append(tb, '\\');
+	/* Escaped newline?  Consume the newline but don't append it. */
+	if (is_newline(ctx, start))
+		return PANCL_SUCCESS;
 
-	if (err == PANCL_SUCCESS)
-		err = token_buffer_append(tb, start);
-
-	return err;
+	/* Unhandled escape sequences are errors. */
+	return PANCL_ERROR_STR_ESC_UNKNOWN;
 }
 
 /**
@@ -652,9 +656,15 @@ get_string(struct pancl_context *ctx, struct token_buffer *tb,
 			return err;
 		}
 
+		/* If we get an embedded newline then we have to canonicalize it to
+		 * a single LF character.
+		 */
+		if (is_newline(ctx, c))
+			c = '\n';
+
 		err = token_buffer_append(tb, c);
 
-		if (err != 0) {
+		if (err != PANCL_SUCCESS) {
 			ctx->error_pos = ctx->pos;
 			return err;
 		}
@@ -676,29 +686,55 @@ int
 next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 {
 	int err;
-	uint_fast32_t c;
+	uint_fast32_t c = '\0';
+	bool escaped = false;
 
-	/* First Token hack:
-	 *  If one is set, return that as the token and then remove the first
-	 *  token.
+	/* There's a "small" hack in place for rewinding the lexer by 1-2 tokens,
+	 * we deal with that here.
 	 */
-	if (ctx->first_token != NULL) {
-		struct token *ft = ctx->first_token;
+	{
+		struct token *token1 = ctx->token1;
 
-		*t = *ft;
+		if (token1 != NULL && token1->type != TT_UNSET) {
+			token_move(t, token1);
 
-		ft->value = NULL;
-		token_fini(ft);
-		free(ctx->first_token);
+			if (ctx->token2 != NULL)
+				token_move(token1, ctx->token2);
 
-		ctx->first_token = NULL;
-		return PANCL_SUCCESS;
+			return PANCL_SUCCESS;
+		}
 	}
+
+	/* Make sure the token buffer is cleared out. */
+	token_buffer_reset(tb);
 
 	while ((err = get_next(ctx, &c)) == PANCL_SUCCESS) {
 		/* Store position data. */
 		t->pos = ctx->pos;
 		ctx->error_pos = ctx->pos;
+
+		/* Grab newline */
+		if (is_newline(ctx, c)) {
+			/* Escaped newlines are eaten and ignored. */
+			if (escaped) {
+				escaped = false;
+				continue;
+			}
+
+			return token_set(t, TT_NEWLINE, TST_NEWLINE, NULL);
+		}
+
+		/* Anything preceeded by a backslash that isn't a newline is an
+		 * ERROR token.
+		 */
+		if (escaped) {
+			err = token_buffer_append(tb, '\\');
+
+			if (err != PANCL_SUCCESS)
+				return err;
+
+			goto invalid_character;
+		}
 
 		/* Check the simple cases (single-character tokens) */
 		switch (c) {
@@ -715,10 +751,6 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 			break;
 		}
 
-		/* Grab newline */
-		if (is_newline(ctx, c))
-			return token_set(t, TT_NEWLINE, TST_NEWLINE, NULL);
-
 		/* Grab whitespace */
 		if (is_whitespace(c)) {
 			err = consume_whitespace(ctx);
@@ -727,19 +759,6 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 				err = token_set(t, TT_WS, TST_WS, NULL);
 
 			return err;
-		}
-
-		/* Next set of cases: '\r' '\n'.  We don't consume \r and \n during
-		 * whitespace retrieval since they may or may not be part of newlines,
-		 * instead we grab them after the newline and whitespace checks as
-		 * seperate tokens.
-		 */
-		switch (c) {
-		case '\r': /* TT_CR */
-		case '\n': /* TT_LF */
-			return token_set(t, (int)(c & 0xff), TST_WS, NULL);
-		default:
-			break;
 		}
 
 		/* Comment! (They count as newlines for simplicity) */
@@ -778,43 +797,123 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 			return err;
 		}
 
-		/* All other characters are invalid. */
-		{
-			token_buffer_reset(tb);
-			err = token_buffer_append(tb, c);
-
-			if (err == PANCL_SUCCESS)
-				err = token_buffer_end(tb);
-
-			if (err == PANCL_SUCCESS)
-				err = token_set(t, TT_ERROR, TST_NONE, tb->buffer);
-
-			return err;
+		/* If we got a backslash then we expect an escaped newline next so mark
+		 * that we're escaping and continue.
+		 */
+		if (c == '\\') {
+			escaped = true;
+			continue;
 		}
+
+		/* All other characters are invalid. */
+		goto invalid_character;
 	}
 
 	/* Return end of file (end of input really). */
-	if (err == PANCL_END_OF_INPUT)
+	if (err == PANCL_END_OF_INPUT) {
+		/* If we ended on an a backslash, we need to report it. */
+		if (escaped == true)
+			goto invalid_character;
+
 		return token_set(t, TT_EOF, TST_NONE, NULL);
+	}
+
+	return err;
+
+invalid_character:
+	err = token_buffer_append(tb, c);
+
+	if (err == PANCL_SUCCESS)
+		err = token_buffer_end(tb);
+
+	if (err == PANCL_SUCCESS)
+		err = token_set(t, TT_ERROR, TST_NONE, tb->buffer);
 
 	return err;
 }
 
 int
-set_first_token(struct pancl_context *ctx, struct token *t)
+lexer_rewind_token2(struct pancl_context *ctx, struct token *t1,
+	struct token *t2)
 {
-	if (ctx->first_token != NULL) {
-		token_fini(ctx->first_token);
-		free(ctx->first_token);
+	/* Rewinding two tokens is easy, just make sure the slots are allocated
+	 * and fill them both.
+	 */
+
+	token_fini(ctx->token1);
+	token_fini(ctx->token2);
+
+	if (ctx->token1 == NULL) {
+		ctx->token1 = malloc(sizeof(*t1));
+
+		if (ctx->token1 == NULL)
+			return PANCL_ERROR_ALLOC;
 	}
 
-	ctx->first_token = malloc(sizeof(*t));
+	token_move(ctx->token1, t1);
 
-	if (ctx->first_token == NULL)
-		return PANCL_ERROR_ALLOC;
+	if (ctx->token2 == NULL) {
+		ctx->token2 = malloc(sizeof(*t2));
 
-	memcpy(ctx->first_token, t, sizeof(*t));
-	t->value = NULL; /* Now owned by first_token. */
+		if (ctx->token2 == NULL)
+			return PANCL_ERROR_ALLOC;
+	}
+
+	token_move(ctx->token2, t2);
+
+	return PANCL_SUCCESS;
+}
+
+int
+lexer_rewind_token(struct pancl_context *ctx, struct token *t)
+{
+	struct token *t1;
+	struct token *t2;
+
+	/* Rewinding one token is a little more difficult.  Move token2 to token1
+	 * then add the new token as token2.
+	 *
+	 * Since we will never have the case where token1 == NULL && token2 != NULL
+	 * we can simplify the logic a bit and just assume that if token1 is unset
+	 * then there isn't a token2.
+	 */
+
+	if (ctx->token1 == NULL) {
+		ctx->token1 = malloc(sizeof(*t));
+
+		if (ctx->token1 == NULL)
+			return PANCL_ERROR_ALLOC;
+
+		token_init(ctx->token1);
+	}
+
+	if (ctx->token2 == NULL) {
+		ctx->token2 = malloc(sizeof(*t));
+
+		if (ctx->token2 == NULL)
+			return PANCL_ERROR_ALLOC;
+
+		token_init(ctx->token2);
+	}
+
+	t1 = ctx->token1;
+	t2 = ctx->token2;
+
+	/* T1 == TT_UNSET && T2 == TT_UNSET */
+	if (t1->type == TT_UNSET) {
+		token_move(t1, t);
+		return PANCL_SUCCESS;
+	}
+
+	/* T1 == * && T2 == TT_UNSET */
+	if (t2->type == TT_UNSET) {
+		token_move(t2, t);
+		return PANCL_SUCCESS;
+	}
+
+	/* T1 == * && T2 == * */
+	token_move(t1, t2);
+	token_move(t2, t);
 	return PANCL_SUCCESS;
 }
 
