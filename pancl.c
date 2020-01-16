@@ -282,11 +282,6 @@ pancl_context_fini(struct pancl_context *ctx)
 		free(ctx->token1);
 	}
 
-	if (ctx->token2 != NULL) {
-		token_fini(ctx->token2);
-		free(ctx->token2);
-	}
-
 	/* Reset all the fields. */
 	pancl_context_init(ctx);
 }

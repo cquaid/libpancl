@@ -116,12 +116,6 @@ parse_array(struct pancl_context *ctx, struct token_buffer *tb,
 			goto cleanup;
 		}
 
-		/* Whitespace is always allowed. */
-		if (t.subtype == TST_WS) {
-			token_fini(&t);
-			continue;
-		}
-
 		switch (state) {
 		case FIND_RVALUE_OR_R_BRACKET:
 			/* When searching for an RVALUE or closing bracket, newlines are
@@ -289,12 +283,6 @@ parse_tuple(struct pancl_context *ctx, struct token_buffer *tb,
 			ctx->error_pos = t.pos;
 			err = PANCL_ERROR_PARSER_TOKEN;
 			goto cleanup;
-		}
-
-		/* Whitespace is always allowed. */
-		if (t.subtype == TST_WS) {
-			token_fini(&t);
-			continue;
 		}
 
 		switch (state) {
@@ -466,12 +454,6 @@ parse_table_data(struct pancl_context *ctx, struct token_buffer *tb,
 			goto cleanup;
 		}
 
-		/* Whitespace is always allowed. */
-		if (t.subtype == TST_WS) {
-			token_fini(&t);
-			continue;
-		}
-
 		switch (state) {
 		case FIND_ASSIGNMENT_OR_R_BRACE:
 			/* When searching for an assignment, newlines are allowed. */
@@ -579,7 +561,6 @@ collate_strings(struct pancl_context *ctx, struct token_buffer *tb,
 {
 	int err;
 	struct token next = TOKEN_INIT;
-	struct token stored_ws = TOKEN_INIT;
 
 	for (;;) {
 		err = next_token(ctx, tb, &next);
@@ -598,19 +579,6 @@ collate_strings(struct pancl_context *ctx, struct token_buffer *tb,
 			goto cleanup;
 		}
 
-		/* Whitespace is allowed between strings. We only check for an exact
-		 * run of whitespace characters here instead of a whitespace subtype
-		 * since that could be other things.
-		 *
-		 * We know that whitespace tokens (because the lexer consumes all
-		 * whitespace sequences as one token) cannot follow one another
-		 * so it's safe to just store the value and keep going.
-		 */
-		if (next.type == TT_WS) {
-			token_move(&stored_ws, &next);
-			continue;
-		}
-
 		/* Got a string! Append it! */
 		if (next.type == TT_STRING) {
 			token_fini(&stored_ws);
@@ -622,20 +590,14 @@ collate_strings(struct pancl_context *ctx, struct token_buffer *tb,
 			continue;
 		}
 
-		/* Any other token means we need to:
-		 * 1. Put back the whitespace token we stored, if we did.
-		 * 2. Put back the current token
+		/* Any other token means we need to put back the current token to be
+		 * picked up by another context.
 		 */
-		if (stored_ws.type != TT_WS)
-			err = lexer_rewind_token(ctx, &next);
-		else
-			err = lexer_rewind_token2(ctx, &stored_ws, &next);
-
+		err = lexer_rewind_token(ctx, &next);
 		break;
 	}
 
 cleanup:
-	token_fini(&stored_ws);
 	token_fini(&next);
 	return err;
 }
@@ -674,12 +636,6 @@ parse_custom_type(struct pancl_context *ctx, struct token_buffer *tb,
 			ctx->error_pos = t.pos;
 			err = PANCL_ERROR_PARSER_TOKEN;
 			goto cleanup;
-		}
-
-		/* Whitespace is always allowed. */
-		if (t.subtype == TST_WS) {
-			token_fini(&t);
-			continue;
 		}
 
 		if (t.type == TT_L_PAREN) {
@@ -845,12 +801,6 @@ parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
 			goto cleanup;
 		}
 
-		/* Whitespace is always allowed. */
-		if (t.subtype == TST_WS) {
-			token_fini(&t);
-			continue;
-		}
-
 		switch (state) {
 		case FIND_EQ:
 			if (t.type == TT_EQ) {
@@ -947,12 +897,6 @@ parse_table_header(struct pancl_context *ctx, struct token_buffer *tb,
 			ctx->error_pos = t.pos;
 			err = PANCL_ERROR_PARSER_TOKEN;
 			goto cleanup;
-		}
-
-		/* Whitespace is always allowed. */
-		if (t.subtype == TST_WS) {
-			token_fini(&t);
-			continue;
 		}
 
 		switch (state) {
@@ -1058,11 +1002,10 @@ pancl_get_table(struct pancl_context *ctx, struct pancl_table *table)
 			goto cleanup;
 		}
 
-		/* Anything with a subtype of whitespace or newline can be ignored:
-		 *  Whitespace: TT_WS, TT_LF, TT_CR
-		 *  Newline: TT_NEWLINE, TT_COMMENT
+		/* Anything with a subtype of newline can be ignored:
+		 *  TT_NEWLINE, TT_COMMENT
 		 */
-		if (t.subtype == TST_WS || t.subtype == TST_NEWLINE) {
+		if (t.subtype == TST_NEWLINE) {
 			token_fini(&t);
 			continue;
 		}

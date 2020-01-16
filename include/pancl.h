@@ -28,7 +28,6 @@ struct pancl_context {
 
 	int end_of_input; /**< No more input data available */
 	void *token1; /**< Internal use */
-	void *token2; /**< Internal use */
 };
 
 void pancl_context_init(struct pancl_context *ctx);

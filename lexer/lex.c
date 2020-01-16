@@ -689,7 +689,7 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 	uint_fast32_t c = '\0';
 	bool escaped = false;
 
-	/* There's a "small" hack in place for rewinding the lexer by 1-2 tokens,
+	/* There's a "small" hack in place for rewinding the lexer by 1 token;
 	 * we deal with that here.
 	 */
 	{
@@ -697,10 +697,6 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 
 		if (token1 != NULL && token1->type != TT_UNSET) {
 			token_move(t, token1);
-
-			if (ctx->token2 != NULL)
-				token_move(token1, ctx->token2);
-
 			return PANCL_SUCCESS;
 		}
 	}
@@ -751,14 +747,16 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 			break;
 		}
 
-		/* Grab whitespace */
+		/* Whitespace is irrelevant. If found, consume it and start parsing the
+		 * next token.
+		 */
 		if (is_whitespace(c)) {
 			err = consume_whitespace(ctx);
 
-			if (err == PANCL_SUCCESS)
-				err = token_set(t, TT_WS, TST_WS, NULL);
+			if (err != PANCL_SUCCESS)
+				return err;
 
-			return err;
+			continue;
 		}
 
 		/* Comment! (They count as newlines for simplicity) */
@@ -833,51 +831,8 @@ invalid_character:
 }
 
 int
-lexer_rewind_token2(struct pancl_context *ctx, struct token *t1,
-	struct token *t2)
-{
-	/* Rewinding two tokens is easy, just make sure the slots are allocated
-	 * and fill them both.
-	 */
-
-	token_fini(ctx->token1);
-	token_fini(ctx->token2);
-
-	if (ctx->token1 == NULL) {
-		ctx->token1 = malloc(sizeof(*t1));
-
-		if (ctx->token1 == NULL)
-			return PANCL_ERROR_ALLOC;
-	}
-
-	token_move(ctx->token1, t1);
-
-	if (ctx->token2 == NULL) {
-		ctx->token2 = malloc(sizeof(*t2));
-
-		if (ctx->token2 == NULL)
-			return PANCL_ERROR_ALLOC;
-	}
-
-	token_move(ctx->token2, t2);
-
-	return PANCL_SUCCESS;
-}
-
-int
 lexer_rewind_token(struct pancl_context *ctx, struct token *t)
 {
-	struct token *t1;
-	struct token *t2;
-
-	/* Rewinding one token is a little more difficult.  Move token2 to token1
-	 * then add the new token as token2.
-	 *
-	 * Since we will never have the case where token1 == NULL && token2 != NULL
-	 * we can simplify the logic a bit and just assume that if token1 is unset
-	 * then there isn't a token2.
-	 */
-
 	if (ctx->token1 == NULL) {
 		ctx->token1 = malloc(sizeof(*t));
 
@@ -886,34 +841,11 @@ lexer_rewind_token(struct pancl_context *ctx, struct token *t)
 
 		token_init(ctx->token1);
 	}
-
-	if (ctx->token2 == NULL) {
-		ctx->token2 = malloc(sizeof(*t));
-
-		if (ctx->token2 == NULL)
-			return PANCL_ERROR_ALLOC;
-
-		token_init(ctx->token2);
+	else {
+		token_fini(ctx->token1);
 	}
 
-	t1 = ctx->token1;
-	t2 = ctx->token2;
-
-	/* T1 == TT_UNSET && T2 == TT_UNSET */
-	if (t1->type == TT_UNSET) {
-		token_move(t1, t);
-		return PANCL_SUCCESS;
-	}
-
-	/* T1 == * && T2 == TT_UNSET */
-	if (t2->type == TT_UNSET) {
-		token_move(t2, t);
-		return PANCL_SUCCESS;
-	}
-
-	/* T1 == * && T2 == * */
-	token_move(t1, t2);
-	token_move(t2, t);
+	token_move(ctx->token1, t);
 	return PANCL_SUCCESS;
 }
 

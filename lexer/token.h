@@ -22,13 +22,9 @@
  */
 #define TST_NEWLINE  1
 /**
- * Subtype: acts as whitespace
- */
-#define TST_WS       2
-/**
  * Subtype: acts as an identifier
  */
-#define TST_IDENT    3
+#define TST_IDENT    2
 
 
 /**
@@ -51,10 +47,6 @@
 #define TT_R_PAREN    ')'
 #define TT_EQ         '='
 #define TT_COMMA      ','
-/**
- * Whitespace: [ \t]+
- */
-#define TT_WS  300
 /**
  * Newline: '\r\n', '\r', or '\n'
  */
@@ -154,12 +146,9 @@ token_buffer_end(struct token_buffer *tb)
 void token_buffer_fini(struct token_buffer *tb);
 
 
+int lexer_rewind_token(struct pancl_context *ctx, struct token *t);
 int next_token(struct pancl_context *ctx, struct token_buffer *tb,
 		struct token *t);
-
-int lexer_rewind_token(struct pancl_context *ctx, struct token *t);
-int lexer_rewind_token2(struct pancl_context *ctx, struct token *t1,
-		struct token *t2);
 
 #endif /* H_PANCL_LEXER_TOKEN */
 // vim:ts=4:sw=4:autoindent
