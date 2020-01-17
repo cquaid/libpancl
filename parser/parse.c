@@ -989,8 +989,6 @@ pancl_get_table(struct pancl_context *ctx, struct pancl_table *table)
 			/* If our table currently has entries, call it a day and
 			 * return the table.  We'll start here again on the next
 			 * round.
-			 *
-			 * XXX: This is a bit of a hack...
 			 */
 			if (table->data.count != 0) {
 				err = lexer_rewind_token(ctx, &t);

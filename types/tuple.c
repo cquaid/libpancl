@@ -35,25 +35,23 @@ pancl_tuple_fini(struct pancl_tuple *tuple)
 int
 pancl_tuple_append(struct pancl_tuple *tuple, struct pancl_value *value)
 {
-	void *d;
-	size_t new_size;
+	int err;
 
 	if (tuple == NULL || value == NULL)
 		return PANCL_ERROR_ARG_INVALID;
 
-	/* XXX: overflow */
-	new_size = sizeof(*(tuple->values)) * (tuple->count + 1);
+	if (!can_inc(tuple->count))
+		return PANCL_ERROR_OVERFLOW;
 
-	d = pancl_realloc(tuple->values, new_size);
+	err = pancl_resize((void **)&(tuple->values), sizeof(*(tuple->values)),
+			tuple->count + 1);
 
-	if (d == NULL)
-		return PANCL_ERROR_ALLOC;
+	if (err == PANCL_SUCCESS) {
+		tuple->values[tuple->count] = value;
+		tuple->count += 1;
+	}
 
-	tuple->values = d;
-	tuple->values[tuple->count] = value;
-	tuple->count += 1;
-
-	return PANCL_SUCCESS;
+	return err;
 }
 
 // vim:ts=4:sw=4:autoindent

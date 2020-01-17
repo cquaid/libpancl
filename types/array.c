@@ -35,8 +35,7 @@ pancl_array_fini(struct pancl_array *array)
 int
 pancl_array_append(struct pancl_array *array, struct pancl_value *value)
 {
-	void *d;
-	size_t new_size;
+	int err;
 
 	if (array == NULL || value == NULL)
 		return PANCL_ERROR_ARG_INVALID;
@@ -47,19 +46,18 @@ pancl_array_append(struct pancl_array *array, struct pancl_value *value)
 			return PANCL_ERROR_ARRAY_MEMBER_TYPE;
 	}
 
-	/* XXX: overflow */
-	new_size = sizeof(*(array->values)) * (array->count + 1);
+	if (!can_inc(array->count))
+		return PANCL_ERROR_OVERFLOW;
 
-	d = pancl_realloc(array->values, new_size);
+	err = pancl_resize((void **)&(array->values), sizeof(*(array->values)),
+			array->count + 1);
 
-	if (d == NULL)
-		return PANCL_ERROR_ALLOC;
+	if (err == PANCL_SUCCESS) {
+		array->values[array->count] = value;
+		array->count += 1;
+	}
 
-	array->values = d;
-	array->values[array->count] = value;
-	array->count += 1;
-
-	return PANCL_SUCCESS;
+	return err;
 }
 
 // vim:ts=4:sw=4:autoindent

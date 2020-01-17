@@ -51,9 +51,11 @@ token_set(struct token *t, int type, int subtype, const char *value)
 int
 token_append(struct token *t, const char *value)
 {
+	int err;
 	void *tmp;
 	size_t len;
 	size_t add;
+	size_t total;
 
 	if (value == NULL)
 		return PANCL_SUCCESS;
@@ -65,8 +67,16 @@ token_append(struct token *t, const char *value)
 
 	add = strlen(value);
 
-	/* XXX: overflow check. */
-	tmp = pancl_realloc(t->value, len + add + 1);
+	/* Overflow checks. */
+	err = safe_add(len, add, &total);
+
+	if (err != PANCL_SUCCESS)
+		return err;
+
+	if (!can_inc(total))
+		return PANCL_ERROR_OVERFLOW;
+
+	tmp = pancl_realloc(t->value, total + 1);
 
 	if (tmp == NULL)
 		return PANCL_ERROR_ALLOC;
@@ -87,18 +97,24 @@ token_move(struct token *dest, struct token *src)
 int
 token_buffer_append_c(struct token_buffer *tb, char c)
 {
+	int err;
 	void *d;
+	size_t new_size;
 
 	if (tb->pos < tb->size)
 		goto append;
 
-	/* Realloc. XXX overflow check. XXX define for step */
-	d = pancl_realloc(tb->buffer, tb->size + TOKEN_BUFFER_STEP);
+	err = safe_add(tb->size, TOKEN_BUFFER_STEP, &new_size);
+
+	if (err != PANCL_SUCCESS)
+		return err;
+
+	d = pancl_realloc(tb->buffer, new_size);
 
 	if (d == NULL)
 		return PANCL_ERROR_ALLOC;
 
-	tb->size += TOKEN_BUFFER_STEP;
+	tb->size = new_size;
 	tb->buffer = d;
 
 append:

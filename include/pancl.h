@@ -8,9 +8,12 @@
 
 struct pancl_parse_operations;
 
+/**
+ * Storage for the line/column position of the start of any given data.
+ */
 struct pancl_pos {
-	unsigned long column;
-	unsigned long line;
+	unsigned long column; /**< Column number (0-based) of the current line */
+	unsigned long line; /**< Line number (0-based) */
 };
 
 struct pancl_context {
@@ -30,14 +33,110 @@ struct pancl_context {
 	void *token1; /**< Internal use */
 };
 
+/**
+ * Static initializer for a pancl_context structure.
+ */
+#define PANCL_CONTEXT_INIT \
+	{ \
+		.ops_data = NULL, \
+		.ops = NULL, \
+		.buffer_size = 0, \
+		.allocated_buffer = NULL, \
+		.cursor = NULL, \
+		.end = NULL, \
+		.pos = { .column = 0, .line = 0 }, \
+		.error_pos = { .column = 0, .line = 0 }, \
+		.end_of_input = 0, \
+		.token1 = NULL \
+	}
+
+/**
+ * Initialize a pancl_context structure to a state that may be safely passed to
+ * pancl_context_fini() and all other functions that accept a pancl_context.
+ *
+ * @param[in] ctx  Context to initialize
+ */
 void pancl_context_init(struct pancl_context *ctx);
+/**
+ * Cleans up all resources associated with a pancl_context.
+ *
+ * @param[in] ctx  Context to clean up
+ *
+ * @note It is safe to call this function multiple times on the same context.
+ */
 void pancl_context_fini(struct pancl_context *ctx);
 
+/**
+ * Start parsing a PanCL file.
+ *
+ * @param[in] ctx    Context to initialize and store parsing state in
+ * @param[in] file   File to parse
+ *
+ * @retval PANCL_SUCCESS   Setup successful
+ * @retval PANCL_ERROR_*   Something went wrong
+ *
+ * @note
+ *   @p file should remain open until pancl_context_fini() has been called
+ *   on @p ctx.
+ */
 int pancl_parse_file(struct pancl_context *ctx, FILE *file);
+/**
+ * Start parsing PanCL data from a string.
+ *
+ * @param[in] ctx      Context to initialize and store parsing state in
+ * @param[in] string   String to parse
+ *
+ * @retval PANCL_SUCCESS   Setup successful
+ * @retval PANCL_ERROR_*   Something went wrong
+ *
+ * @note
+ *   @p string should remain available until pancl_context_fini() has been
+ *   called on @p ctx.
+ */
 int pancl_parse_string(struct pancl_context *ctx, const char *string);
+/**
+ * Start parsing PanCL data from an arbitrary buffer.
+ *
+ * @param[in] ctx      Context to initialize and store parsing state in
+ * @param[in] buffer   Buffer to parse
+ * @param[in] size     Size of @p buffer in bytes
+ *
+ * @retval PANCL_SUCCESS   Setup successful
+ * @retval PANCL_ERROR_*   Something went wrong
+ *
+ * @note
+ *   @p buffer should remain available until pancl_context_fini() has been
+ *   called on @p ctx.
+ */
 int pancl_parse_buffer(struct pancl_context *ctx, const void *buffer,
 		size_t size);
 
+/**
+ * Retrieves a constant string equivalent of the given error code.
+ *
+ * @param[in] pancl_error_code   Error code to decode
+ *
+ * @return Returns an error string.
+ * @note This function never returns NULL.
+ */
+const char *pancl_strerror(int pancl_error_code);
+
+/**
+ * Set the allocation functions for the entire PanCL library.
+ *
+ * @param[in] alloc_fn     Basic allocation function (malloc)
+ * @param[in] realloc_fn   Specialized reallocation function (realloc)
+ * @param[in] free_fn      Cleanup function (free)
+ *
+ * @note All functions must be specified.
+ * @note DEFINITELY NOT THREAD SAFE
+ *
+ * @retval PANCL_SUCCESS             Success
+ * @retval PANCL_ERROR_ARG_INVALID   A NULL parameter was given
+ */
+int pancl_lib_set_allocators(void *(*alloc_fn)(size_t),
+		void *(*realloc_fn)(void *, size_t),
+		void(*free_fn)(void *));
 
 struct pancl_value;
 struct pancl_entry;
@@ -268,13 +367,48 @@ struct pancl_table {
 };
 
 /**
- * @param[out] table
+ * Parse the next table from a pancl_context and return its data.
+ *
+ * @param[in] ctx      Context attached to some form of input (pancl_parse_*)
+ * @param[out] table   Location to store the parsed table data.
+ *
+ * @retval PANCL_SUCCESS       Successful parse, @p table contains valid data
+ * @retval PANCL_ERROR_*       Something failed
+ * @retval PANCL_END_OF_INPUT  No more tables to return; parsing complete
  */
 int pancl_get_table(struct pancl_context *ctx, struct pancl_table *table);
+
+/**
+ * Initialize a pancl_table structure to a state that may be safely passed
+ * to pancl_table_fini().
+ *
+ * @param[in] table   Table to initialize
+ */
 void pancl_table_init(struct pancl_table *table);
+/**
+ * Cleans up all the resources associated with a pancl_table.
+ *
+ * @param[in] table   Table to clean up
+ *
+ * @note It is safe to call this function multiple times with the same table.
+ */
 void pancl_table_fini(struct pancl_table *table);
 
+/**
+ * Cleans up the memory associated with a pancl_entry.
+ *
+ * @param[in,out] entry   Pointer to the pointer to the entry to clean up
+ *
+ * @note The dereference of @p entry will be set to NULL on return.
+ */
 void pancl_entry_destroy(struct pancl_entry **entry);
+/**
+ * Cleans up the memory associated with a pancl_value.
+ *
+ * @param[in,out] value   Pointer to the pointer to the value to clean up
+ *
+ * @note The dereference of @p value will be set to NULL on return.
+ */
 void pancl_value_destroy(struct pancl_value **value);
 
 #endif /* H_PANCL */

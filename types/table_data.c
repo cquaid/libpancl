@@ -35,25 +35,23 @@ pancl_table_data_fini(struct pancl_table_data *td)
 int
 pancl_table_data_append(struct pancl_table_data *td, struct pancl_entry *entry)
 {
-	void *d;
-	size_t new_size;
+	int err;
 
 	if (td == NULL || entry == NULL)
 		return PANCL_ERROR_ARG_INVALID;
 
-	/* XXX: overflow */
-	new_size = sizeof(*(td->entries)) * (td->count + 1);
+	if (!can_inc(td->count))
+		return PANCL_ERROR_OVERFLOW;
 
-	d = pancl_realloc(td->entries, new_size);
+	err = pancl_resize((void **)&(td->entries), sizeof(*(td->entries)),
+			td->count + 1);
 
-	if (d == NULL)
-		return PANCL_ERROR_ALLOC;
+	if (err == PANCL_SUCCESS) {
+		td->entries[td->count] = entry;
+		td->count += 1;
+	}
 
-	td->entries = d;
-	td->entries[td->count] = entry;
-	td->count += 1;
-
-	return PANCL_SUCCESS;
+	return err;
 }
 
 // vim:ts=4:sw=4:autoindent

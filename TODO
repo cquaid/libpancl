@@ -8,8 +8,4 @@
 
 3. Implement ::Float("...").
 
-4. Add an error string function:
-
-    pancl_strerror(code) -> const char *
-
-5. Write a parser for floating point numbers
+4. Write a parser for floating point numbers
