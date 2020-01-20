@@ -2,6 +2,10 @@
 #ifndef H_PANCL
 #define H_PANCL
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -312,10 +316,10 @@ enum pancl_type {
 union pancl_type_union {
 	struct pancl_array array;      /**< PANCL_TYPE_ARRAY */
 	struct pancl_custom custom;    /**< PANCL_TYPE_CUSTOM */
-	int boolean;                    /**< PANCL_TYPE_BOOLEAN */
-	double floating;                /**< PANCL_TYPE_FLOATING */
-	int_least32_t integer;          /**< PANCL_TYPE_INTEGER */
-	char *string;                   /**< PANCL_TYPE_STRING (non-NULL) */
+	int boolean;                   /**< PANCL_TYPE_BOOLEAN */
+	double floating;               /**< PANCL_TYPE_FLOATING */
+	int_least32_t integer;         /**< PANCL_TYPE_INTEGER */
+	char *string;                  /**< PANCL_TYPE_STRING (non-NULL) */
 	struct pancl_table_data table; /**< PANCL_TYPE_TABLE */
 	struct pancl_tuple tuple;      /**< PANCL_TYPE_TUPLE */
 	union {
@@ -355,8 +359,8 @@ struct pancl_entry {
 struct pancl_table {
 	/**
 	 * Name of the table.  Note that the very first table in a file may be NULL
-	 * which represents values in the global table instead of those under a
-	 * table header ([...])
+	 * which represents values in the root table instead of those under a table
+	 * header ([...])
 	 */
 	char *name;
 	/**
@@ -410,6 +414,11 @@ void pancl_entry_destroy(struct pancl_entry **entry);
  * @note The dereference of @p value will be set to NULL on return.
  */
 void pancl_value_destroy(struct pancl_value **value);
+
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* H_PANCL */
 // vim:ts=4:sw=4:autoindent
