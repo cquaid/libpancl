@@ -1019,7 +1019,7 @@ pancl_get_next_table(struct pancl_context *ctx, struct pancl_table *table)
 			 * return the table.  We'll start here again on the next
 			 * round.
 			 */
-			if (table->data.count != 0) {
+			if (table->name != NULL || table->data.count != 0) {
 				err = lexer_rewind_token(ctx, &t);
 
 				if (err != PANCL_SUCCESS)
