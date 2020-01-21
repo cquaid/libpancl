@@ -1,9 +1,9 @@
-h1. Language Features
+# Language Features
 Just a short overview while the formal specification is being written.
 
-h2. Tokens
+## Tokens
 
-h3. Newline
+### Newline
 ```
 Newline = "\r\n"
         | "\r"
@@ -11,7 +11,7 @@ Newline = "\r\n"
         ;
 ```
 
-h3. Comment
+### Comment
 ```
 Comment = '#' .* Newline
         ;
@@ -20,7 +20,7 @@ Comments start with `#` and continue until the end of the line.  A comment
 may not end with a backslash `\\` as comments are single line and thus cannot
 continue to the next line. Comments may appear almost anywhere.
 
-h3. Raw Identifier
+### Raw Identifier
 ```
 RawIdent = [a-zA-Z0-9_:+-]+
 ```
@@ -31,7 +31,7 @@ they may be evaluated differently depending on the context.
 The rule-of-thumb is: if the the context allows an integer, floating point, or
 boolean, then those types are used instead of raw identifer.
 
-h3. String
+### String
 ```
 String = '"' .* '"'
        | "'" .* "'"
@@ -68,7 +68,7 @@ A single-quoted string does not evaluate escape sequences.
 
 Adjacend strings (``"foo" 'bar'``) are combined into one token ("foobar").
 
-h3. Integers
+### Integers
 ```
 BinaryInt = [+-]?0[bB][01]+
        ;
@@ -90,7 +90,7 @@ Note that `0` may not prefix a decimal integer. Only `+0`, `-0`, and `0` are
 valid.  However, hex, octal, and binary integers may contain multiple leading
 zeros after their specific prefixes (e.g. `0x00000a`, `0b00`, `0o067`).
 
-h3. Floating Point Values
+### Floating Point Values
 ```
 SignAndNumber = [+-]?[0-9]+
             ;
@@ -105,21 +105,21 @@ Float = SignAndNumber '.' Exponent?
       ;
 ```
 
-h3. Boolean Values
+### Boolean Values
 ```
 Bool = 'true'
      | 'false'
      ;
 ```
 
-h3. Whitespace
+### Whitespace
 ```
 Whitespace = [ \t]
 ```
 
-h2. High-Level Constructs
+## High-Level Constructs
 
-h3. Array
+### Array
 ```
 ArrayMemberList = RVALUE
                 | ArrayMemberList ',' RVALUE
@@ -133,7 +133,7 @@ Array = '[' ']'
 Arrays may only contain members of a single type and may include an optional
 trailing comma.
 
-h3. Tuple
+### Tuple
 ```
 TupleMemberList = RVALUE
                 | TupleMemberList ',' RVALUE
@@ -147,7 +147,7 @@ Tuple = '(' ')'
 Tuples may contain members any type (i.e. each member may be a different type
 if desired), and may include an optional trailing comma.
 
-h3. Custom Type
+### Custom Type
 ```
 CustomType = RawIdent Tuple
            ;
@@ -158,7 +158,7 @@ Raw Identifier that does not look like an integer, float, or bool.
 
 Custom Type names that begin with `::` are reserved for use by the standard.
 
-h3. Inline Table
+### Inline Table
 ```
 InlineTableList = Assignment
                 | InlineTableList ',' Assignment
@@ -173,7 +173,7 @@ An inlline table is a collection of name-value pairs. These come in the form
 of assignment expressions and may include an optional trailing comma.  The
 names in the inline table are not required to be unique.
 
-h3. RVALUE
+### RVALUE
 ```
 RVALUE = Array
        | Bool
@@ -187,7 +187,7 @@ RVALUE = Array
 ```
 An RVALUE is anything legal to the right of an equal sign in an assignment.
 
-h3. Assignment
+### Assignment
 ```
 Assignment = String '=' RVALUE
            | RawIdent '=' RVALUE
@@ -196,7 +196,7 @@ Assignment = String '=' RVALUE
 Assignment statements are one of the two allowable constructs available at
 the top-level of a PanCL file.
 
-h3. Table Header
+### Table Header
 ```
 TableHeader = '[' String ']'
             | '[' RawIdent ']'
@@ -208,7 +208,7 @@ to be unique.
 
 Table Headers must be on a line by themselves (save for comments)
 
-h2. Parsing Entry Point
+## Parsing Entry Point
 ```
 TopLevelConstruct = TableHeader
                   | Assignment
@@ -221,7 +221,7 @@ EntryPoint = TopLevelConstruct
 The entry point for parsing a PanCL file may only contain Table Headers,
 Assignments, comments and whitespace.
 
-h2. Other Information
+## Other Information
 1. Lines ending with a backslash (`\\`) followed immediately by a newline are
 continued onto the next line.  Otherwise, parsing ends at the newline unless
 parsing an Array, Tuple, Inline Table, or String.
