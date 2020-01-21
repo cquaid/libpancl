@@ -17,7 +17,7 @@ Comment = '#' .* Newline
         ;
 ```
 Comments start with `#` and continue until the end of the line.  A comment
-may not end with a backslash `\\` as comments are single line and thus cannot
+may not end with a backslash `\` as comments are single line and thus cannot
 continue to the next line. Comments may appear almost anywhere.
 
 ### Raw Identifier
@@ -41,22 +41,23 @@ String = '"' .* '"'
 ```
 A string is a series of adjacent quoted values. Values in double-quotes may
 evaluate escape sequences:
+
 | Escape Sequence | Meaning |
 | --- | --- |
-| `\\a` | BEL (0x07) |
-| `\\b` | BS  (0x08) |
-| `\\f` | Form Feed (0x0C) |
-| `\\n` | Line Feed (0x0A) |
-| `\\r` | Carriage Return (0x0D) |
-| `\\t` | Horizontal Tab (0x09) |
-| `\\v` | Vertical Tab (0x0B) |
-| `\\`  | Backslash (0x5C) |
-| `\\'` | Single Quote (0x27) |
-| `\\"` | Double Quote (0x22) |
-| `\\ooo` | Octal value, 1-3 digits (o = octal digit) |
-| `\\xhh | Single-byte hex value (h = hex digit) |
-| `\\uhhhh | two-byte unicode character (h = hex digit) |
-| `\\Uhhhhhhhh | four-byte unicode character (h = hex digit) |
+| `\a` | BEL (0x07) |
+| `\b` | BS  (0x08) |
+| `\f` | Form Feed (0x0C) |
+| `\n` | Line Feed (0x0A) |
+| `\r` | Carriage Return (0x0D) |
+| `\t` | Horizontal Tab (0x09) |
+| `\v` | Vertical Tab (0x0B) |
+| `\`  | Backslash (0x5C) |
+| `\'` | Single Quote (0x27) |
+| `\"` | Double Quote (0x22) |
+| `\ooo` | Octal value, 1-3 digits (o = octal digit) |
+| `\xhh` | Single-byte hex value (h = hex digit) |
+| `\uhhhh` | two-byte unicode character (h = hex digit) |
+| `\Uhhhhhhhh` | four-byte unicode character (h = hex digit) |
 
 Newlines may also be escaped.  If so, the newline is consumed and the string
 parsing continues as if it never existed.
@@ -222,23 +223,25 @@ The entry point for parsing a PanCL file may only contain Table Headers,
 Assignments, comments and whitespace.
 
 ## Other Information
-1. Lines ending with a backslash (`\\`) followed immediately by a newline are
+1. Lines ending with a backslash (`\`) followed immediately by a newline are
 continued onto the next line.  Otherwise, parsing ends at the newline unless
 parsing an Array, Tuple, Inline Table, or String.
 1. Optional Integer Types
 Since the default integer type is a signed 32-bit value, the language defines
 optional alternate-width integer designations:
-| Custom Type Name |Description |
-| --- | --- |
-| ::Integer | Signed 32-bit |
-| ::Int8 | Signed 8-bit |
-| ::Uint8 | Unsigned 8-bit |
-| ::Int16 | Signed 16-bit |
-| ::Uint16 | Unsigned 16-bit |
-| ::Int32 | Signed 32-bit |
-| ::Uint32 | Unsigned 32-bit |
-| ::Int64 | Signed 64-bit |
-| ::Uint64 | Unsigned 64-bit |
+
+    | Custom Type Name | Description |
+    | --- | --- |
+    | ::Integer | Signed 32-bit |
+    | ::Int8 | Signed 8-bit |
+    | ::Uint8 | Unsigned 8-bit |
+    | ::Int16 | Signed 16-bit |
+    | ::Uint16 | Unsigned 16-bit |
+    | ::Int32 | Signed 32-bit |
+    | ::Uint32 | Unsigned 32-bit |
+    | ::Int64 | Signed 64-bit |
+    | ::Uint64 | Unsigned 64-bit |
+
 All Optional integer types accept a tuple with one or two parameters:
     1. A *string* value representing the integer
     1. An optional *integer* value representing the base.  If `0` is given,
