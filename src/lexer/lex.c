@@ -8,8 +8,7 @@
 #include <string.h>
 
 #include "internal.h"
-#include "pancl.h"
-#include "pancl_error.h"
+#include "pancl/pancl.h"
 
 #include "lexer/numeric.h"
 #include "lexer/token.h"
@@ -143,7 +142,7 @@ advance(struct pancl_context *ctx)
 		return err;
 
 	ctx->cursor += length;
-	ctx->pos.column += 1;
+	ctx->loc.column += 1;
 
 	switch (c) {
 	case '\r':
@@ -158,14 +157,14 @@ advance(struct pancl_context *ctx)
 			 * If we got CR LF, wait to increment the line count until we
 			 * consume the LF.
 			 */
-			ctx->pos.column = 0;
-			ctx->pos.line += 1;
+			ctx->loc.column = 0;
+			ctx->loc.line += 1;
 		}
 		break;
 
 	case '\n':
-		ctx->pos.column = 0;
-		ctx->pos.line += 1;
+		ctx->loc.column = 0;
+		ctx->loc.line += 1;
 		break;
 	}
 
@@ -528,7 +527,7 @@ handle_escape(struct pancl_context *ctx, struct token_buffer *tb,
 	int err = PANCL_SUCCESS;
 
 	/* Store error context in case of a failure. */
-	ctx->error_pos = ctx->pos;
+	ctx->error_loc = ctx->loc;
 
 	/* In raw mode, everything is unhandled. */
 	if (raw) {
@@ -625,7 +624,7 @@ get_single_string(struct pancl_context *ctx, struct token_buffer *tb,
 			err = token_buffer_end(tb);
 
 			if (err != PANCL_SUCCESS)
-				ctx->error_pos = ctx->pos;
+				ctx->error_loc = ctx->loc;
 
 			return err;
 		}
@@ -639,12 +638,12 @@ get_single_string(struct pancl_context *ctx, struct token_buffer *tb,
 		err = token_buffer_append(tb, c);
 
 		if (err != PANCL_SUCCESS) {
-			ctx->error_pos = ctx->pos;
+			ctx->error_loc = ctx->loc;
 			return err;
 		}
 	}
 
-	ctx->error_pos = ctx->pos;
+	ctx->error_loc = ctx->loc;
 
 	/* If END_OF_INPUT then we ran out of content before finding the ending
 	 * delimiter.
@@ -776,8 +775,8 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 
 	while ((err = get_next(ctx, &c)) == PANCL_SUCCESS) {
 		/* Store position data. */
-		t->pos = ctx->pos;
-		ctx->error_pos = ctx->pos;
+		t->loc = ctx->loc;
+		ctx->error_loc = ctx->loc;
 
 		/* Grab newline */
 		if (is_newline(ctx, c)) {

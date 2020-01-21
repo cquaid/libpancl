@@ -5,7 +5,7 @@
 /**
  * Successful operation.
  */
-#define PANCL_SUCCESS   0
+#define PANCL_SUCCESS  0
 #define PANCL_SUCCESS_str \
 	"Success"
 /**
@@ -134,6 +134,13 @@
 #define PANCL_ERROR_ARRAY_MEMBER_TYPE  300
 #define PANCL_ERROR_ARRAY_MEMBER_TYPE_str \
 	"Array defined with mixed member types"
+
+/**
+ * Integer has leading zeros and is not one of: +0, -0, 0
+ */
+#define PANCL_ERROR_INT_LEADING_ZEROS  6000
+#define PANCL_ERROR_INT_LEADING_ZEROS_str \
+	"Decimal integer found with leading zeros"
 
 /**
  * End of Input reached before finding closing quote

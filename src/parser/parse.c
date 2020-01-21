@@ -7,8 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "pancl.h"
-#include "pancl_error.h"
+#include "pancl/pancl.h"
 
 #include "internal.h"
 #include "lexer/token.h"
@@ -30,9 +29,17 @@ static int parse_rvalue(struct pancl_context *ctx, struct token_buffer *tb,
 				struct token *start, struct pancl_value *value,
 				terminator_fn is_terminator);
 static int parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
-				struct pancl_entry **entry_storage,
+				struct token *name, struct pancl_entry **entry_storage,
 				terminator_fn is_terminator);
 
+static void
+context_set_error(struct pancl_context *ctx, struct token *t)
+{
+	ctx->error_loc = t->loc;
+	pancl_free(ctx->error_token);
+	ctx->error_token = t->value;
+	t->value = NULL;
+}
 
 /**
  * Generic newline terminator checking function.
@@ -87,7 +94,8 @@ array_member_terminator(const struct token * const t)
  */
 static int
 parse_array(struct pancl_context *ctx, struct token_buffer *tb,
-	struct pancl_array *array, terminator_fn is_terminator)
+	struct token *open_bracket, struct pancl_array *array,
+	terminator_fn is_terminator)
 {
 	int err;
 	struct token t = TOKEN_INIT;
@@ -103,6 +111,7 @@ parse_array(struct pancl_context *ctx, struct token_buffer *tb,
 
 	/* Array should already be initialized, but whatever. */
 	pancl_array_init(array);
+	array->loc = open_bracket->loc;
 
 	for (;;) {
 		err = next_token(ctx, tb, &t);
@@ -111,7 +120,7 @@ parse_array(struct pancl_context *ctx, struct token_buffer *tb,
 			goto cleanup;
 
 		if (t.type == TT_ERROR) {
-			ctx->error_pos = t.pos;
+			context_set_error(ctx, &t);
 			err = PANCL_ERROR_PARSER_TOKEN;
 			goto cleanup;
 		}
@@ -200,9 +209,8 @@ parse_array(struct pancl_context *ctx, struct token_buffer *tb,
 		}
 
 		/* Got anything else: invalid parse. */
-		ctx->error_pos = t.pos;
+		context_set_error(ctx, &t);
 
-		/* XXX: Store the error token type. */
 		if (t.type == TT_EOF)
 			err = PANCL_ERROR_PARSER_EOF;
 		else
@@ -256,7 +264,8 @@ tuple_member_terminator(const struct token * const t)
  */
 static int
 parse_tuple(struct pancl_context *ctx, struct token_buffer *tb,
-	struct pancl_tuple *tuple, terminator_fn is_terminator)
+	struct token *open_paren, struct pancl_tuple *tuple,
+	terminator_fn is_terminator)
 {
 	int err;
 	struct token t = TOKEN_INIT;
@@ -272,6 +281,7 @@ parse_tuple(struct pancl_context *ctx, struct token_buffer *tb,
 
 	/* Tuple should already be initialized, but whatever. */
 	pancl_tuple_init(tuple);
+	tuple->loc = open_paren->loc;
 
 	for (;;) {
 		err = next_token(ctx, tb, &t);
@@ -280,7 +290,7 @@ parse_tuple(struct pancl_context *ctx, struct token_buffer *tb,
 			goto cleanup;
 
 		if (t.type == TT_ERROR) {
-			ctx->error_pos = t.pos;
+			context_set_error(ctx, &t);
 			err = PANCL_ERROR_PARSER_TOKEN;
 			goto cleanup;
 		}
@@ -369,9 +379,8 @@ parse_tuple(struct pancl_context *ctx, struct token_buffer *tb,
 		}
 
 		/* Got anything else: invalid parse. */
-		ctx->error_pos = t.pos;
+		context_set_error(ctx, &t);
 
-		/* XXX: Store the error token type. */
 		if (t.type == TT_EOF)
 			err = PANCL_ERROR_PARSER_EOF;
 		else
@@ -425,7 +434,8 @@ table_entry_terminator(const struct token * const t)
  */
 static int
 parse_table_data(struct pancl_context *ctx, struct token_buffer *tb,
-	struct pancl_table_data *table_data, terminator_fn is_terminator)
+	struct token *open_brace, struct pancl_table_data *table_data,
+	terminator_fn is_terminator)
 {
 	int err;
 	struct token t = TOKEN_INIT;
@@ -441,6 +451,7 @@ parse_table_data(struct pancl_context *ctx, struct token_buffer *tb,
 
 	/* Table data should already be initialized, but whatever. */
 	pancl_table_data_init(table_data);
+	table_data->loc = open_brace->loc;
 
 	for (;;) {
 		err = next_token(ctx, tb, &t);
@@ -449,7 +460,7 @@ parse_table_data(struct pancl_context *ctx, struct token_buffer *tb,
 			goto cleanup;
 
 		if (t.type == TT_ERROR) {
-			ctx->error_pos = t.pos;
+			context_set_error(ctx, &t);
 			err = PANCL_ERROR_PARSER_TOKEN;
 			goto cleanup;
 		}
@@ -472,15 +483,12 @@ parse_table_data(struct pancl_context *ctx, struct token_buffer *tb,
 			/* If we got an identifier, then this is likely an "assignment". */
 			if (t.subtype == TST_IDENT) {
 				struct pancl_entry *entry = NULL;
-				err = parse_assignment(ctx, tb, &entry,
+				err = parse_assignment(ctx, tb, &t, &entry,
 						table_entry_terminator);
 
 				/* On success we append to the entry to the table.*/
-				if (err == PANCL_SUCCESS) {
-					entry->name = t.value;
-					t.value = NULL; /* Owned by the entry now. */
+				if (err == PANCL_SUCCESS)
 					err = pancl_table_data_append(table_data, entry);
-				}
 
 				if (err != PANCL_SUCCESS) {
 					pancl_entry_destroy(&entry);
@@ -535,9 +543,8 @@ parse_table_data(struct pancl_context *ctx, struct token_buffer *tb,
 		}
 
 		/* Got anything else: invalid parse. */
-		ctx->error_pos = t.pos;
+		context_set_error(ctx, &t);
 
-		/* XXX: Store the error token type. */
 		if (t.type == TT_EOF)
 			err = PANCL_ERROR_PARSER_EOF;
 		else
@@ -564,12 +571,15 @@ cleanup:
  */
 static int
 parse_custom_type(struct pancl_context *ctx, struct token_buffer *tb,
-	struct pancl_custom *custom, terminator_fn is_terminator)
+	struct token *name, struct pancl_custom *custom,
+	terminator_fn is_terminator)
 {
 	int err;
 	struct token t = TOKEN_INIT;
 
-	/* Name already assigned, look for the tuple start. */
+	custom->loc = name->loc;
+	custom->name = name->value;
+	name->value = NULL; /* Owned by custom now */
 
 	for (;;) {
 		err = next_token(ctx, tb, &t);
@@ -578,24 +588,24 @@ parse_custom_type(struct pancl_context *ctx, struct token_buffer *tb,
 			goto cleanup;
 
 		if (t.type == TT_EOF) {
+			context_set_error(ctx, &t);
 			err = PANCL_ERROR_PARSER_EOF;
 			goto cleanup;
 		}
 
 		if (t.type == TT_ERROR) {
-			ctx->error_pos = t.pos;
+			context_set_error(ctx, &t);
 			err = PANCL_ERROR_PARSER_TOKEN;
 			goto cleanup;
 		}
 
 		if (t.type == TT_L_PAREN) {
-			err = parse_tuple(ctx, tb, &(custom->tuple), is_terminator);
+			err = parse_tuple(ctx, tb, &t, &(custom->tuple), is_terminator);
 			goto cleanup;
 		}
 
 		/* Got anything else: invalid parse. */
-		ctx->error_pos = t.pos;
-		/* XXX: Store the error token type. */
+		context_set_error(ctx, &t);
 		err = PANCL_ERROR_PARSER_CUSTOM_ARGS;
 		goto cleanup;
 	}
@@ -630,6 +640,8 @@ parse_rvalue(struct pancl_context *ctx, struct token_buffer *tb,
 	struct token *start, struct pancl_value *value,
 	terminator_fn is_terminator)
 {
+	value->loc = start->loc;
+
 	switch (start->type) {
 	case TT_STRING:
 		pancl_value_init(value, PANCL_TYPE_STRING);
@@ -642,6 +654,20 @@ parse_rvalue(struct pancl_context *ctx, struct token_buffer *tb,
 		return str_to_int32(&(value->data.integer), start->value, 2);
 
 	case TT_INT_DEC:
+		{
+			/* XXX: Hack! Since the lexer can pick up a number with leading
+			 *      zeros as a decimal, we have to validate here that it's
+			 *      legal.
+			 *
+			 *      This should probably be done in the lexer but that code is
+			 *      so clean that I don't want to muddy it.
+			 */
+			const char *p = start->value;
+			if (*p == '-' || *p == '+')
+				++p;
+			if (p[0] == '0' && p[1] != '\0')
+				return PANCL_ERROR_INT_LEADING_ZEROS;
+		}
 		pancl_value_init(value, PANCL_TYPE_INTEGER);
 		return str_to_int32(&(value->data.integer), start->value, 10);
 
@@ -654,11 +680,9 @@ parse_rvalue(struct pancl_context *ctx, struct token_buffer *tb,
 		return str_to_int32(&(value->data.integer), start->value, 8);
 
 	case TT_FLOAT:
+		/* XXX Should implement our own strtod(). */
 		pancl_value_init(value, PANCL_TYPE_FLOATING);
-		{
-			// XXX
-			value->data.floating = strtod(start->value, NULL);
-		}
+		value->data.floating = strtod(start->value, NULL);
 		return PANCL_SUCCESS;
 
 	case TT_TRUE:
@@ -673,24 +697,25 @@ parse_rvalue(struct pancl_context *ctx, struct token_buffer *tb,
 
 	case TT_L_BRACKET: /* Array start */
 		pancl_value_init(value, PANCL_TYPE_ARRAY);
-		return parse_array(ctx, tb, &(value->data.array), is_terminator);
+		return parse_array(ctx, tb, start, &(value->data.array),
+					is_terminator);
 
 	case TT_L_PAREN: /* Tuple start */
 		pancl_value_init(value, PANCL_TYPE_TUPLE);
-		return parse_tuple(ctx, tb, &(value->data.tuple), is_terminator);
+		return parse_tuple(ctx, tb, start, &(value->data.tuple),
+					is_terminator);
 
 	case TT_L_BRACE: /* Table start */
 		pancl_value_init(value, PANCL_TYPE_TABLE);
-		return parse_table_data(ctx, tb, &(value->data.table), is_terminator);
+		return parse_table_data(ctx, tb, start, &(value->data.table),
+					is_terminator);
 
 	case TT_RAW_IDENT: /* Custom type start */
 		pancl_value_init(value, PANCL_TYPE_CUSTOM);
-		value->data.custom.name = start->value;
-		start->value = NULL; /* Owned by value now. */
 		{
 			int err;
 
-			err = parse_custom_type(ctx, tb, &(value->data.custom),
+			err = parse_custom_type(ctx, tb, start, &(value->data.custom),
 					is_terminator);
 
 			if (err == PANCL_SUCCESS)
@@ -718,7 +743,8 @@ parse_rvalue(struct pancl_context *ctx, struct token_buffer *tb,
  */
 static int
 parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
-	struct pancl_entry **entry_storage, terminator_fn is_terminator)
+	struct token *name, struct pancl_entry **entry_storage,
+	terminator_fn is_terminator)
 {
 	int err;
 	struct token t = TOKEN_INIT;
@@ -737,6 +763,11 @@ parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
 	if (err != PANCL_SUCCESS)
 		return err;
 
+	/* Grab the starting token's location and string value. */
+	entry_storage[0]->loc = name->loc;
+	entry_storage[0]->name = name->value;
+	name->value = NULL; /* Owned by *entry_storage now. */
+
 	for (;;) {
 		err = next_token(ctx, tb, &t);
 
@@ -744,7 +775,7 @@ parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
 			goto cleanup;
 
 		if (t.type == TT_ERROR) {
-			ctx->error_pos = t.pos;
+			context_set_error(ctx, &t);
 			err = PANCL_ERROR_PARSER_TOKEN;
 			goto cleanup;
 		}
@@ -759,7 +790,7 @@ parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
 			break;
 
 		case FIND_RVALUE:
-			/* Propogate the termiantor check. */
+			/* Propogate the terminator check. */
 			err = parse_rvalue(ctx, tb, &t, &(entry_storage[0]->value),
 					is_terminator);
 
@@ -791,9 +822,8 @@ parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
 		}
 
 		/* Got anything else: invalid parse. */
-		ctx->error_pos = t.pos;
+		context_set_error(ctx, &t);
 
-		/* XXX: Store the error token type. */
 		if (t.type == TT_EOF)
 			err = PANCL_ERROR_PARSER_EOF;
 		else
@@ -845,7 +875,7 @@ parse_table_header(struct pancl_context *ctx, struct token_buffer *tb,
 			goto cleanup;
 
 		if (t.type == TT_ERROR) {
-			ctx->error_pos = t.pos;
+			context_set_error(ctx, &t);
 			err = PANCL_ERROR_PARSER_TOKEN;
 			goto cleanup;
 		}
@@ -890,9 +920,8 @@ parse_table_header(struct pancl_context *ctx, struct token_buffer *tb,
 		}
 
 		/* Got anything else: invalid parse. */
-		ctx->error_pos = t.pos;
+		context_set_error(ctx, &t);
 
-		/* XXX: Store the error token type. */
 		if (t.type == TT_EOF)
 			err = PANCL_ERROR_PARSER_EOF;
 		else
@@ -916,7 +945,7 @@ cleanup:
  * @retval PANCL_ERROR_*        Some form of failure occured
  */
 int
-pancl_get_table(struct pancl_context *ctx, struct pancl_table *table)
+pancl_get_next_table(struct pancl_context *ctx, struct pancl_table *table)
 {
 	struct token_buffer tb = TOKEN_BUFFER_INIT;
 	struct token t = TOKEN_INIT;
@@ -925,6 +954,10 @@ pancl_get_table(struct pancl_context *ctx, struct pancl_table *table)
 
 	if (ctx == NULL || table == NULL)
 		return PANCL_ERROR_ARG_INVALID;
+
+	/* Make sure the error token is cleared so we can safely replace it. */
+	pancl_free(ctx->error_token);
+	ctx->error_token = NULL;
 
 	pancl_table_init(table);
 
@@ -948,7 +981,7 @@ pancl_get_table(struct pancl_context *ctx, struct pancl_table *table)
 
 		/* If we got an error token, we should return an invalid value. */
 		if (t.type == TT_ERROR) {
-			ctx->error_pos = t.pos;
+			context_set_error(ctx, &t);
 			err = PANCL_ERROR_PARSER_TOKEN;
 			goto cleanup;
 		}
@@ -965,15 +998,11 @@ pancl_get_table(struct pancl_context *ctx, struct pancl_table *table)
 		if (t.subtype == TST_IDENT) {
 			struct pancl_entry *entry = NULL;
 
-			err = parse_assignment(ctx, &tb, &entry,
-					newline_terminator);
+			err = parse_assignment(ctx, &tb, &t, &entry, newline_terminator);
 
 			/* On success we append to the entry to the table.*/
-			if (err == PANCL_SUCCESS) {
-				entry->name = t.value;
-				t.value = NULL; /* Owned by the entry now. */
+			if (err == PANCL_SUCCESS)
 				err = pancl_table_data_append(&(table->data), entry);
-			}
 
 			if (err != PANCL_SUCCESS) {
 				pancl_entry_destroy(&entry);
@@ -999,6 +1028,8 @@ pancl_get_table(struct pancl_context *ctx, struct pancl_table *table)
 				break;
 			}
 
+			/* Store the location of the start of the table. */
+			table->loc = t.loc;
 			err = parse_table_header(ctx, &tb, &(table->name));
 
 			if (err != PANCL_SUCCESS)
@@ -1009,7 +1040,7 @@ pancl_get_table(struct pancl_context *ctx, struct pancl_table *table)
 		}
 
 		/* Unknown token! */
-		ctx->error_pos = t.pos;
+		context_set_error(ctx, &t);
 		err = PANCL_ERROR_PARSER_TOKEN;
 		goto cleanup;
 	}

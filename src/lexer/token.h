@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "pancl.h"
+#include "pancl/pancl.h"
 #include "lexer/utf8.h"
 
 /* Token Type is broken up into 2 segments:
@@ -94,7 +94,7 @@ struct token {
 	int type : 10; /**< What it be */
 	int subtype : 4; /**< What it also be */
 	char *value; /**< String value */
-	struct pancl_pos pos; /**< Line / Column for token start */
+	struct pancl_location loc; /**< Line / Column for token start */
 };
 
 #define TOKEN_INIT \
@@ -102,8 +102,8 @@ struct token {
 		.type = TT_UNSET, \
 		.subtype = TST_NONE, \
 		.value = NULL, \
-		.pos.line = 0, \
-		.pos.column = 0 \
+		.loc.line = 0, \
+		.loc.column = 0 \
 	}
 
 int token_set(struct token *t, int type, int subtype, const char *value);

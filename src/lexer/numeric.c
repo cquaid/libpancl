@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "pancl.h"
+#include "pancl/pancl.h"
 #include "lexer/token.h"
 #include "lexer/numeric.h"
 
@@ -131,8 +131,6 @@ str_is_float(const char *str)
 {
 	size_t s;
 	char *end = NULL;
-
-	/* XXX: At some point write an actually floating point parser. */
 
 	if (*str == '-' || *str == '+')
 		++str;

@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "pancl_error.h"
+#include "pancl/pancl.h"
 #include "lexer/token.h"
 #include "lexer/utf8.h"
 

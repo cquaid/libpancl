@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: MIT */
-#include "pancl.h"
-#include "pancl_error.h"
+#include "pancl/pancl.h"
 
 #define CASE(prefix, suffix) \
 	_CASE(prefix ## suffix ## _str, suffix, prefix ## suffix)
@@ -38,6 +37,8 @@ pancl_strerror(int pancl_error_code)
 	CASE( PANCL_ERROR_, PARSER_CUSTOM_ARGS );
 	/* Array */
 	CASE( PANCL_ERROR_, ARRAY_MEMBER_TYPE );
+	/* Integer */
+	CASE( PANCL_ERROR_, INT_LEADING_ZEROS );
 	/* String */
 	CASE( PANCL_ERROR_, STR_SHORT );
 	CASE( PANCL_ERROR_, STR_ESC_X );

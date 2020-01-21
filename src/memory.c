@@ -4,8 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "pancl.h"
-#include "pancl_error.h"
+#include "pancl/pancl.h"
 #include "internal.h"
 
 static void(*pancl_free_fn)(void *p) = free;

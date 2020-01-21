@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "pancl_error.h"
+#include "pancl/pancl.h"
 #include "internal.h"
 #include "lexer/token.h"
 
@@ -15,8 +15,8 @@ token_init(struct token *t)
 	t->type = TT_UNSET;
 	t->subtype = TST_NONE;
 	t->value = NULL;
-	t->pos.line = 0;
-	t->pos.column = 0;
+	t->loc.line = 0;
+	t->loc.column = 0;
 }
 
 void

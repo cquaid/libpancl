@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "pancl.h"
+#include "pancl/pancl.h"
 
 struct pancl_parse_operations {
 	/**

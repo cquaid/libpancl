@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <limits.h>
 
-#include "pancl_error.h"
+#include "pancl/pancl.h"
 #include "internal.h"
 
 int

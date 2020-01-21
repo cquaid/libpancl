@@ -18,19 +18,14 @@ This is the reference parser for the Panini Configuration Language.
 
 
 ## Usage
-1. Include the relevant headers
+1. Include the relevant header
 ```c
 #include <pancl/pancl.h>
-#include <pancl/pancl_error.h>
 ```
 1. Initialize a `pancl_context`
 ```c
 struct pancl_context ctx;
 pancl_context_init(&ctx);
-
-/* OR */
-
-struct pancl_context ctx = PANCL_CONTEXT_INIT;
 ```
 1. Attach the context to some form of input:
 ```c
@@ -55,7 +50,7 @@ struct pancl_table table;
 pancl_table_init(&table);
 
 for (;;) {
-    err = pancl_get_table(&ctx, &table);
+    err = pancl_get_next_table(&ctx, &table);
     /* Done parsing? */
     if (err == PANCL_END_OF_INPUT)
         break;

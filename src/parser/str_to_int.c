@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "pancl_error.h"
+#include "pancl/pancl.h"
 #include "parser/str_to_int.h"
 
 static int
