@@ -70,7 +70,11 @@ pancl_context_fini(&ctx);
 ```
 
 If a failure occurs (`PANCL_ERROR_*` return value), the
-`pancl_context.error_pos` member will be updated to reflect the location in the
-input where the failure was encountered. `pancl_strerror()` may also be used
-to retrieve the string description of the returned error code.
+`pancl_context.error_loc` member will be updated to reflect the approximaate
+location in the input where the failure was encountered. `pancl_strerror()` may
+also be used to retrieve the string description of the returned error code.
+
+Additionally, `pancl_context.error_token` *might* be set to the UTF-8 string
+of the token the error occured on.  This is not guaranteed to be set and will
+be NULL when the token is unknown or wasn't allocated.
 
