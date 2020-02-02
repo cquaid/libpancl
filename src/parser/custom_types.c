@@ -15,6 +15,7 @@ handle_int(struct pancl_value *value, enum pancl_type type)
 	int err = PANCL_ERROR_ARG_INVALID;
 	union pancl_type_union new_data;
 	const char *str = NULL;
+	struct pancl_utf8_string *utf8_str = NULL;
 	int base = 0;
 
 	struct pancl_tuple *tuple = &(value->data.custom.tuple);
@@ -27,7 +28,7 @@ handle_int(struct pancl_value *value, enum pancl_type type)
 	if (tuple->values[0]->type != PANCL_TYPE_STRING)
 		return PANCL_ERROR_OPT_INT_ARG_0_NOT_STRING;
 
-	str = tuple->values[0]->data.string;
+	utf8_str = tuple->values[0]->data.string;
 
 	/* [Arg 1] Validate and grab the optional base portion */
 	if (tuple->count == 2) {
@@ -36,6 +37,15 @@ handle_int(struct pancl_value *value, enum pancl_type type)
 
 		base = (int)tuple->values[1]->data.integer;
 	}
+
+	/* Make sure the string is in a good format (ascii and no embedded NULs) */
+	if (!pancl_utf8_string_is_ascii(utf8_str))
+		return PANCL_ERROR_STR_TO_INT_CHAR;
+
+	if (pancl_utf8_string_contains_nul(utf8_str))
+		return PANCL_ERROR_STR_TO_INT_CHAR;
+
+	str = utf8_str->data;
 
 	switch (type) {
 	case PANCL_TYPE_INTEGER:
@@ -94,37 +104,46 @@ handle_int(struct pancl_value *value, enum pancl_type type)
 int
 handle_known_custom_types(struct pancl_value *value)
 {
-	const char *name = value->data.custom.name;
+	struct pancl_utf8_string *name = value->data.custom.name;
 
-	if (strcmp(name, "::Integer") == 0)
+	/* Custom type names come from Raw Identifiers so they can
+	 * only ever be ASCII but we validate the assumption regardless.
+	 */
+	if (!pancl_utf8_string_is_ascii(name))
+		return PANCL_SUCCESS;
+
+	if (pancl_utf8_string_contains_nul(name))
+		return PANCL_SUCCESS;
+
+	if (strcmp(name->data, "::Integer") == 0)
 		return handle_int(value, PANCL_TYPE_INTEGER);
 
-	if (strcmp(name, "::Int8") == 0)
+	if (strcmp(name->data, "::Int8") == 0)
 		return handle_int(value, PANCL_TYPE_OPT_INT8);
 
-	if (strcmp(name, "::Uint8") == 0)
+	if (strcmp(name->data, "::Uint8") == 0)
 		return handle_int(value, PANCL_TYPE_OPT_UINT8);
 
-	if (strcmp(name, "::Int16") == 0)
+	if (strcmp(name->data, "::Int16") == 0)
 		return handle_int(value, PANCL_TYPE_OPT_INT16);
 
-	if (strcmp(name, "::Uint16") == 0)
+	if (strcmp(name->data, "::Uint16") == 0)
 		return handle_int(value, PANCL_TYPE_OPT_UINT16);
 
-	if (strcmp(name, "::Int32") == 0)
+	if (strcmp(name->data, "::Int32") == 0)
 		return handle_int(value, PANCL_TYPE_OPT_INT32);
 
-	if (strcmp(name, "::Uint32") == 0)
+	if (strcmp(name->data, "::Uint32") == 0)
 		return handle_int(value, PANCL_TYPE_OPT_UINT32);
 
-	if (strcmp(name, "::Int64") == 0)
+	if (strcmp(name->data, "::Int64") == 0)
 		return handle_int(value, PANCL_TYPE_OPT_INT64);
 
-	if (strcmp(name, "::Uint64") == 0)
+	if (strcmp(name->data, "::Uint64") == 0)
 		return handle_int(value, PANCL_TYPE_OPT_UINT64);
 
 #if 0 /* XXX: Implement at some point. */
-	if (strcmp(name, "::Float") == 0)
+	if (strcmp(name->data, "::Float") == 0)
 		return handle_float(value);
 #endif
 

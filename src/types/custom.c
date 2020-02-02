@@ -23,7 +23,7 @@ pancl_custom_fini(struct pancl_custom *custom)
 	if (custom == NULL)
 		return;
 
-	pancl_free(custom->name);
+	pancl_utf8_string_destroy(&(custom->name));
 	pancl_tuple_fini(&(custom->tuple));
 
 	pancl_custom_init(custom);

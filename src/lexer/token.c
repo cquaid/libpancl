@@ -14,7 +14,7 @@ token_init(struct token *t)
 {
 	t->type = TT_UNSET;
 	t->subtype = TST_NONE;
-	t->value = NULL;
+	t->string = NULL;
 	t->loc.line = 0;
 	t->loc.column = 0;
 }
@@ -25,66 +25,56 @@ token_fini(struct token *t)
 	if (t == NULL)
 		return;
 
-	pancl_free(t->value);
+	pancl_utf8_string_destroy(&(t->string));
 	token_init(t);
 }
 
+
 int
-token_set(struct token *t, int type, int subtype, const char *value)
+token_set_string(struct token *t, int type, int subtype,
+	struct pancl_utf8_string *string)
 {
 	t->type = type;
 	t->subtype = subtype;
-
-	if (value == NULL) {
-		t->value = NULL;
-		return PANCL_SUCCESS;
-	}
-
-	t->value = pancl_strdup(value);
-
-	if (t->value == NULL)
-		return PANCL_ERROR_ALLOC;
+	t->string = string;
 
 	return PANCL_SUCCESS;
 }
 
-int
-token_append(struct token *t, const char *value)
+static int
+token_buffer_to_utf8_string(struct token_buffer *tb,
+	struct pancl_utf8_string **string)
 {
-	int err;
-	void *tmp;
-	size_t len;
-	size_t add;
-	size_t total;
+	/* tb->pos is the byte count. */
+	int err = pancl_utf8_string_new(string, tb->pos);
 
-	if (value == NULL)
-		return PANCL_SUCCESS;
-
-	if (t->value == NULL)
-		len = 0;
-	else
-		len = strlen(t->value);
-
-	add = strlen(value);
-
-	/* Overflow checks. */
-	err = safe_add(len, add, &total);
-
-	if (err != PANCL_SUCCESS)
+	if (err != 0)
 		return err;
 
-	if (!can_inc(total))
-		return PANCL_ERROR_OVERFLOW;
+	/* Copy in the string data. */
+	memcpy((*string)->data, tb->buffer, tb->pos + 1);
+	/* Set the code point count (bytes was already set). */
+	(*string)->codepoints = tb->codepoints;
 
-	tmp = pancl_realloc(t->value, total + 1);
-
-	if (tmp == NULL)
-		return PANCL_ERROR_ALLOC;
-
-	t->value = tmp;
-
-	memcpy(&(t->value[len]), value, add + 1);
 	return PANCL_SUCCESS;
+}
+
+
+int
+token_set(struct token *t, int type, int subtype, struct token_buffer *tb)
+{
+	int err;
+	struct pancl_utf8_string *string = NULL;
+
+	err = token_buffer_to_utf8_string(tb, &string);
+
+	if (err == PANCL_SUCCESS)
+		err = token_set_string(t, type, subtype, string);
+
+	if (err != PANCL_SUCCESS)
+		pancl_utf8_string_destroy(&string);
+
+	return err;
 }
 
 void
@@ -125,7 +115,10 @@ append:
 int
 token_buffer_end(struct token_buffer *tb)
 {
-	int err = token_buffer_append(tb, '\0');
+	/* Using append_c since we know this is a single-byte and we don't want the
+	 * codepoint count to increase.
+	 */
+	int err = token_buffer_append_c(tb, '\0');
 
 	/* Decrement the position when we add the '\0' in case someone attempts to
 	 * append later (legal).

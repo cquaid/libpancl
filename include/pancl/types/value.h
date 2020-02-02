@@ -9,6 +9,7 @@
 #include "pancl/types/location.h"
 #include "pancl/types/table_data.h"
 #include "pancl/types/tuple.h"
+#include "pancl/types/utf8_string.h"
 
 enum pancl_type {
 	/**
@@ -99,14 +100,14 @@ enum pancl_type {
  * Union of data types.
  */
 union pancl_type_union {
-	struct pancl_array array;      /**< PANCL_TYPE_ARRAY */
-	struct pancl_custom custom;    /**< PANCL_TYPE_CUSTOM */
-	int boolean;                   /**< PANCL_TYPE_BOOLEAN */
-	double floating;               /**< PANCL_TYPE_FLOATING */
-	int_least32_t integer;         /**< PANCL_TYPE_INTEGER */
-	char *string;                  /**< PANCL_TYPE_STRING (non-NULL) */
-	struct pancl_table_data table; /**< PANCL_TYPE_TABLE */
-	struct pancl_tuple tuple;      /**< PANCL_TYPE_TUPLE */
+	struct pancl_array array;         /**< PANCL_TYPE_ARRAY */
+	struct pancl_custom custom;       /**< PANCL_TYPE_CUSTOM */
+	int boolean;                      /**< PANCL_TYPE_BOOLEAN */
+	double floating;                  /**< PANCL_TYPE_FLOATING */
+	int_least32_t integer;            /**< PANCL_TYPE_INTEGER */
+	struct pancl_utf8_string *string; /**< PANCL_TYPE_STRING (non-NULL) */
+	struct pancl_table_data table;    /**< PANCL_TYPE_TABLE */
+	struct pancl_tuple tuple;         /**< PANCL_TYPE_TUPLE */
 	union {
 		int_least8_t int8;     /**< PANCL_TYPE_OPT_INT8 */
 		uint_least8_t uint8;   /**< PANCL_TYPE_OPT_UINT8 */

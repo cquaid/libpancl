@@ -17,6 +17,7 @@ extern "C" {
 #include "pancl/types/table.h"
 #include "pancl/types/table_data.h"
 #include "pancl/types/tuple.h"
+#include "pancl/types/utf8_string.h"
 #include "pancl/types/value.h"
 
 struct pancl_parse_operations;
@@ -34,7 +35,7 @@ struct pancl_context {
 	struct pancl_location loc; /**< Column/line number */
 	/* Note: Error data is not exact. */
 	struct pancl_location error_loc; /**< Error column/line number */
-	char *error_token; /**< UTF-8, may be NULL. Error token string */
+	struct pancl_utf8_string *error_token; /**< Error token (can be NULL) */
 
 	int end_of_input; /**< No more input data available */
 	void *token1; /**< Internal use */

@@ -344,10 +344,10 @@ set_ident_token(struct token *t, struct pancl_context *ctx,
 
 	/* Simple cases: boolean true and false. */
 	if (strcmp(tb->buffer, "true") == 0)
-		return token_set(t, TT_TRUE, TST_IDENT, NULL);
+		return token_set_empty(t, TT_TRUE, TST_IDENT);
 
 	if (strcmp(tb->buffer, "false") == 0)
-		return token_set(t, TT_FALSE, TST_IDENT, NULL);
+		return token_set_empty(t, TT_FALSE, TST_IDENT);
 
 	/* Numeric regexes:
 	 *  DecInt:  [-+]?(0|[1-9][0-9]*)
@@ -389,7 +389,7 @@ set_ident_token(struct token *t, struct pancl_context *ctx,
 		break;
 	}
 
-	return token_set(t, type, TST_IDENT, tb->buffer);
+	return token_set(t, type, TST_IDENT, tb);
 }
 
 
@@ -786,7 +786,7 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 				continue;
 			}
 
-			return token_set(t, TT_NEWLINE, TST_NEWLINE, NULL);
+			return token_set_empty(t, TT_NEWLINE, TST_NEWLINE);
 		}
 
 		/* Anything preceeded by a backslash that isn't a newline is an
@@ -811,7 +811,7 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 		case '}': /* TT_R_BRACE */
 		case '=': /* TT_EQ */
 		case ',': /* TT_COMMA */
-			return token_set(t, (int)(c & 0xff), TST_NONE, NULL);
+			return token_set_empty(t, (int)(c & 0xff), TST_NONE);
 		default:
 			break;
 		}
@@ -827,7 +827,7 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 			err = consume_comment(ctx);
 
 			if (err == PANCL_SUCCESS)
-				err = token_set(t, TT_COMMENT, TST_NEWLINE, NULL);
+				err = token_set_empty(t, TT_COMMENT, TST_NEWLINE);
 
 			return err;
 		}
@@ -837,7 +837,7 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 			err = get_string(ctx, tb, c);
 
 			if (err == PANCL_SUCCESS)
-				err = token_set(t, TT_STRING, TST_IDENT, tb->buffer);
+				err = token_set(t, TT_STRING, TST_IDENT, tb);
 
 			return err;
 		}
@@ -876,7 +876,7 @@ next_token(struct pancl_context *ctx, struct token_buffer *tb, struct token *t)
 		if (escaped == true)
 			goto invalid_character;
 
-		return token_set(t, TT_EOF, TST_NONE, NULL);
+		return token_set_empty(t, TT_EOF, TST_NONE);
 	}
 
 	return err;
@@ -888,7 +888,7 @@ invalid_character:
 		err = token_buffer_end(tb);
 
 	if (err == PANCL_SUCCESS)
-		err = token_set(t, TT_ERROR, TST_NONE, tb->buffer);
+		err = token_set(t, TT_ERROR, TST_NONE, tb);
 
 	return err;
 }

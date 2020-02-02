@@ -37,7 +37,7 @@ pancl_entry_fini(struct pancl_entry *entry)
 	if (entry == NULL)
 		return;
 
-	pancl_free(entry->name);
+	pancl_utf8_string_destroy(&(entry->name));
 	pancl_value_fini(&(entry->value));
 
 	pancl_entry_init(entry);

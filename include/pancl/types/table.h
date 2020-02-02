@@ -5,6 +5,8 @@
 #include "pancl/types/location.h"
 #include "pancl/types/table_data.h"
 
+struct pancl_utf8_string;
+
 /**
  * Top-level table:
  *  [ name ]
@@ -22,7 +24,7 @@ struct pancl_table {
 	 * which represents values in the root table instead of those under a table
 	 * header ([...])
 	 */
-	char *name;
+	struct pancl_utf8_string *name;
 	/**
 	 * Data associated with the table.
 	 * May be NULL.

@@ -274,7 +274,7 @@ pancl_context_fini(struct pancl_context *ctx)
 	if (ctx->ops != NULL && ctx->ops->fini != NULL)
 		ctx->ops->fini(ctx->ops_data);
 
-	pancl_free(ctx->error_token);
+	pancl_utf8_string_destroy(&(ctx->error_token));
 	pancl_free(ctx->allocated_buffer);
 
 	if (ctx->token1 != NULL) {

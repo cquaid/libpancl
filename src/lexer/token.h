@@ -93,7 +93,7 @@
 struct token {
 	int type : 10; /**< What it be */
 	int subtype : 4; /**< What it also be */
-	char *value; /**< String value */
+	struct pancl_utf8_string *string; /**< String value */
 	struct pancl_location loc; /**< Line / Column for token start */
 };
 
@@ -101,30 +101,49 @@ struct token {
 	{ \
 		.type = TT_UNSET, \
 		.subtype = TST_NONE, \
-		.value = NULL, \
+		.string = NULL, \
 		.loc.line = 0, \
 		.loc.column = 0 \
 	}
 
-int token_set(struct token *t, int type, int subtype, const char *value);
+struct token_buffer;
+
 void token_init(struct token *t);
 void token_fini(struct token *t);
-int token_append(struct token *t, const char *value);
 void token_move(struct token *dest, struct token *src);
+int token_set(struct token *t, int type, int subtype,
+		struct token_buffer *tb);
+int token_set_string(struct token *t, int type, int subtype,
+		struct pancl_utf8_string *string);
+
+static inline int
+token_set_empty(struct token *t, int type, int subtype)
+{
+	return token_set_string(t, type, subtype, NULL);
+}
+
 
 struct token_buffer {
 	char *buffer;
-	size_t size;
-	size_t pos;
+	size_t size; /**< In bytes */
+	size_t pos; /**< Byte position */
+	size_t codepoints; /**< Number of stored codepoints. */
 };
 
-#define TOKEN_BUFFER_INIT  { .buffer = NULL, .size = 0, .pos = 0 }
 #define TOKEN_BUFFER_STEP  512
+#define TOKEN_BUFFER_INIT \
+	{ \
+		.buffer = NULL, \
+		.size = 0, \
+		.pos = 0, \
+		.codepoints = 0 \
+	}
 
 static inline void
 token_buffer_reset(struct token_buffer *tb)
 {
 	tb->pos = 0;
+	tb->codepoints = 0;
 }
 
 /* Internal shouldn't be used directly except by the utf-8 code. */

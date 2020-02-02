@@ -36,9 +36,11 @@ static void
 context_set_error(struct pancl_context *ctx, struct token *t)
 {
 	ctx->error_loc = t->loc;
-	pancl_free(ctx->error_token);
-	ctx->error_token = t->value;
-	t->value = NULL;
+
+	pancl_utf8_string_destroy(&(ctx->error_token));
+	ctx->error_token = t->string;
+
+	t->string = NULL;
 }
 
 /**
@@ -578,8 +580,8 @@ parse_custom_type(struct pancl_context *ctx, struct token_buffer *tb,
 	struct token t = TOKEN_INIT;
 
 	custom->loc = name->loc;
-	custom->name = name->value;
-	name->value = NULL; /* Owned by custom now */
+	custom->name = name->string;
+	name->string = NULL; /* Owned by custom now */
 
 	for (;;) {
 		err = next_token(ctx, tb, &t);
@@ -645,13 +647,13 @@ parse_rvalue(struct pancl_context *ctx, struct token_buffer *tb,
 	switch (start->type) {
 	case TT_STRING:
 		pancl_value_init(value, PANCL_TYPE_STRING);
-		value->data.string = start->value;
-		start->value = NULL; /* Owned by value now. */
+		value->data.string = start->string;
+		start->string = NULL; /* Owned by value now. */
 		return PANCL_SUCCESS;
 
 	case TT_INT_BIN:
 		pancl_value_init(value, PANCL_TYPE_INTEGER);
-		return str_to_int32(&(value->data.integer), start->value, 2);
+		return str_to_int32(&(value->data.integer), start->string->data, 2);
 
 	case TT_INT_DEC:
 		{
@@ -662,27 +664,27 @@ parse_rvalue(struct pancl_context *ctx, struct token_buffer *tb,
 			 *      This should probably be done in the lexer but that code is
 			 *      so clean that I don't want to muddy it.
 			 */
-			const char *p = start->value;
+			const char *p = start->string->data;
 			if (*p == '-' || *p == '+')
 				++p;
 			if (p[0] == '0' && p[1] != '\0')
 				return PANCL_ERROR_INT_LEADING_ZEROS;
 		}
 		pancl_value_init(value, PANCL_TYPE_INTEGER);
-		return str_to_int32(&(value->data.integer), start->value, 10);
+		return str_to_int32(&(value->data.integer), start->string->data, 10);
 
 	case TT_INT_HEX:
 		pancl_value_init(value, PANCL_TYPE_INTEGER);
-		return str_to_int32(&(value->data.integer), start->value, 16);
+		return str_to_int32(&(value->data.integer), start->string->data, 16);
 
 	case TT_INT_OCT:
 		pancl_value_init(value, PANCL_TYPE_INTEGER);
-		return str_to_int32(&(value->data.integer), start->value, 8);
+		return str_to_int32(&(value->data.integer), start->string->data, 8);
 
 	case TT_FLOAT:
 		/* XXX Should implement our own strtod(). */
 		pancl_value_init(value, PANCL_TYPE_FLOATING);
-		value->data.floating = strtod(start->value, NULL);
+		value->data.floating = strtod(start->string->data, NULL);
 		return PANCL_SUCCESS;
 
 	case TT_TRUE:
@@ -765,8 +767,8 @@ parse_assignment(struct pancl_context *ctx, struct token_buffer *tb,
 
 	/* Grab the starting token's location and string value. */
 	entry_storage[0]->loc = name->loc;
-	entry_storage[0]->name = name->value;
-	name->value = NULL; /* Owned by *entry_storage now. */
+	entry_storage[0]->name = name->string;
+	name->string = NULL; /* Owned by *entry_storage now. */
 
 	for (;;) {
 		err = next_token(ctx, tb, &t);
@@ -854,7 +856,7 @@ cleanup:
  */
 static int
 parse_table_header(struct pancl_context *ctx, struct token_buffer *tb,
-	char **name_storage)
+	struct pancl_utf8_string **name_storage)
 {
 	int err;
 	struct token t = TOKEN_INIT;
@@ -886,8 +888,8 @@ parse_table_header(struct pancl_context *ctx, struct token_buffer *tb,
 			if (t.subtype == TST_IDENT) {
 				state = FIND_R_BRACKET;
 
-				*name_storage = t.value;
-				t.value = NULL;
+				*name_storage = t.string;
+				t.string = NULL;
 
 				token_fini(&t);
 				continue;
@@ -956,8 +958,7 @@ pancl_get_next_table(struct pancl_context *ctx, struct pancl_table *table)
 		return PANCL_ERROR_ARG_INVALID;
 
 	/* Make sure the error token is cleared so we can safely replace it. */
-	pancl_free(ctx->error_token);
-	ctx->error_token = NULL;
+	pancl_utf8_string_destroy(&(ctx->error_token));
 
 	pancl_table_init(table);
 

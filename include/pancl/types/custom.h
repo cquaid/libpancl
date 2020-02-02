@@ -5,6 +5,8 @@
 #include "pancl/types/location.h"
 #include "pancl/types/tuple.h"
 
+struct pancl_utf8_string;
+
 /**
  * Represents a custom type: name( ... )
  */
@@ -18,7 +20,7 @@ struct pancl_custom {
 	 *
 	 * Guaranteed to be non-NULL and non-empty.
 	 */
-	char *name;
+	struct pancl_utf8_string *name;
 	/**
 	 * Tuple containing the type parameters.  This tuple may be empty.
 	 *

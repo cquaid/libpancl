@@ -83,6 +83,8 @@ store:
 			if (err != 0)
 				return err;
 		}
+
+		tb->codepoints += 1;
 	}
 
 	return PANCL_SUCCESS;

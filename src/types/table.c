@@ -21,7 +21,7 @@ pancl_table_fini(struct pancl_table *table)
 	if (table == NULL)
 		return;
 
-	pancl_free(table->name);
+	pancl_utf8_string_destroy(&(table->name));
 	pancl_table_data_fini(&(table->data));
 
 	pancl_table_init(table);

@@ -32,6 +32,17 @@ pancl_alloc(size_t n)
 	return pancl_alloc_fn(n);
 }
 
+void *
+pancl_zalloc(size_t n)
+{
+	void *ret = pancl_alloc(n);
+
+	if (ret != NULL)
+		memset(ret, 0, n);
+
+	return ret;
+}
+
 void
 pancl_free(void *p)
 {
@@ -66,28 +77,6 @@ pancl_resize(void **p, size_t n, size_t count)
 
 	*p = d;
 	return PANCL_SUCCESS;
-}
-
-char *
-pancl_strdup(const char *str)
-{
-	void *r;
-	size_t len;
-
-	if (str == NULL)
-		return NULL;
-
-	len = strlen(str);
-
-	if (!can_inc(len))
-		return NULL;
-
-	r = pancl_alloc(len + 1);
-
-	if (r != NULL)
-		memcpy(r, str, len + 1);
-
-	return r;
 }
 
 // vim:ts=4:sw=4:autoindent

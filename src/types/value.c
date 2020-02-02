@@ -126,7 +126,7 @@ pancl_value_fini(struct pancl_value *value)
 		break;
 
 	case PANCL_TYPE_STRING:
-		pancl_free(value->data.string);
+		pancl_utf8_string_destroy(&(value->data.string));
 		break;
 
 	case PANCL_TYPE_TABLE:

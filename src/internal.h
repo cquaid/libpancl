@@ -63,6 +63,9 @@ void pancl_table_data_fini(struct pancl_table_data *td);
 int pancl_table_data_append(struct pancl_table_data *td,
 		struct pancl_entry *entry);
 
+/* types/utf8_string.c */
+int pancl_utf8_string_new(struct pancl_utf8_string **string, size_t bytes);
+
 /* types/value.c */
 int pancl_value_new(struct pancl_value **value, enum pancl_type type);
 void pancl_value_init(struct pancl_value *value, enum pancl_type type);
@@ -86,8 +89,8 @@ can_inc(size_t v)
 /* memory.c */
 void pancl_free(void *p);
 void *pancl_alloc(size_t n);
+void *pancl_zalloc(size_t n);
 void *pancl_realloc(void *p, size_t n);
-char *pancl_strdup(const char *str);
 int pancl_resize(void **p, size_t n, size_t count);
 
 #endif /* H_PANCL_INTERNAL */

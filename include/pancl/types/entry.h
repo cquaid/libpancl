@@ -5,13 +5,15 @@
 #include "pancl/types/location.h"
 #include "pancl/types/value.h"
 
+struct pancl_utf8_string;
+
 /**
  * Entry in a table (key-value pair).
  */
 struct pancl_entry {
-	struct pancl_location loc; /**< Where found in the input */
-	char *name; /**< Name (key) of the entry (non-NULL) */
-	struct pancl_value value; /**< Associated value (non-NULL) */
+	struct pancl_location loc;      /**< Where found in the input */
+	struct pancl_utf8_string *name; /**< Name (key) of the entry (non-NULL) */
+	struct pancl_value value;       /**< Associated value (non-NULL) */
 };
 
 /**
